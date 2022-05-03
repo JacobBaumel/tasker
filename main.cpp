@@ -3,11 +3,28 @@
 #include "imgui_impl_opengl3.h"
 #include <GLFW/glfw3.h>
 #include <iostream>
-#include "mysql_functions.h"
 #include <cppconn/connection.h>
 #include <cppconn/driver.h>
+#include "json/jsonstuff.h"
+#include <fstream>
+
+namespace tasker {
+    enum class DisplayWindow {
+        add_database,
+        pick_workspace,
+        workspace_main,
+    };
+};
+
+void display_connection_add(tasker::DisplayWindow& stage);
+void display_workspace(tasker::json_sql_connection& connection);
+void display_worskapce_selection();
 
 int main() {
+
+    {if(!std::ifstream("config.json").good()) {std::ofstream("config.json") << "{\"connections\": []}";}}
+
+    //GLFW and OpenGL setup
     if(!glfwInit()) {
         std::cerr << "Could not initialize OpenGL!" << std::endl;
         return -1;
@@ -35,13 +52,15 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
     ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+    bool has_picked_workspace = false;
+    tasker::DisplayWindow stage = tasker::DisplayWindow::add_database;
 
-    sql::Connection* con = nullptr;
     ImFont* ubuntu = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
-    //ImGui::PushFont(ubuntu);
-    ImGuiWindowFlags flags;
+
+    //Main window loop
     while(!glfwWindowShouldClose(window)) {
         
+        //setting up new rendering frame
         glfwPollEvents();
 
         ImGui_ImplOpenGL3_NewFrame();
@@ -49,78 +68,21 @@ int main() {
         ImGui::NewFrame();
         ImGui::StyleColorsDark();
         ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive] = ImVec4(0.263, 0.749, 0.004, 1);
-        if(con == nullptr) {
-            flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
-            ImGui::SetNextWindowSize(ImVec2(500, 300));
-            ImGuiViewport* viewport = ImGui::GetMainViewport();
-            ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + (viewport->Size.x / 2) - 250, viewport->Pos.y + (viewport->Size.y / 2) - 250));
-            ImGui::SetWindowFocus("Enter Organization Information");
-            if(ImGui::Begin("Enter Organization Information", nullptr, flags)) {
-                bool connect_ready = false;
 
-                ImGui::Text("Database IP: "); ImGui::SameLine();
-                static char ip[128] = "";
-                ImGui::PushItemWidth(250);
-                ImGui::SetCursorPosX(150);
-                ImGui::PushID(0);
-                connect_ready = connect_ready || ImGui::InputText("", ip, IM_ARRAYSIZE(ip), ImGuiInputTextFlags_EnterReturnsTrue);
-                ImGui::PopID();
+        //actual program logic
+        switch(stage) {
+            case tasker::DisplayWindow::add_database:
+                display_connection_add(stage);
+                break;
 
-                ImGui::Text("Port:"); ImGui::SameLine();
-                static int port = 3306;
-                ImGui::SetCursorPosX(150);
-                ImGui::PushID(1);
-                connect_ready = connect_ready || ImGui::InputInt("", &port, 0, 0, ImGuiInputTextFlags_EnterReturnsTrue);
-                ImGui::PopID();
-                if(port < 0) port = 0;
-                else if(port > 65535) port = 65535;
+            case tasker::DisplayWindow::pick_workspace:
+                break;
 
-                ImGui::Text("Username: "); ImGui::SameLine();
-                static char username[128];
-                ImGui::SetCursorPosX(150);
-                ImGui::PushID(2);
-                connect_ready = connect_ready || ImGui::InputText("", username, IM_ARRAYSIZE(username), ImGuiInputTextFlags_EnterReturnsTrue);
-                ImGui::PopID();
-                
-                static bool show_pass = false;
-
-                ImGui::Text("Password: "); ImGui::SameLine();
-                static char password[128];
-                ImGui::SetCursorPosX(150);
-                ImGui::PushID(3);
-                connect_ready = connect_ready || ImGui::InputText("", password, IM_ARRAYSIZE(password), show_pass ? 0 : ImGuiInputTextFlags_Password | ImGuiInputTextFlags_EnterReturnsTrue);
-                ImGui::PopID();
-
-                ImGui::SetCursorPosX(150);
-                ImGui::Checkbox("Show", &show_pass);
-
-                ImGui::NewLine();
-                ImGui::SetCursorPosX(200);
-                connect_ready = ImGui::Button("Connect", ImVec2(100, 25));
-                static bool show_login_error = false;
-
-                if(connect_ready) {
-                    try {
-                        con = get_driver_instance()->connect("tcp://" + (std::string) ip + ":" + std::to_string(port), username, password);
-                    } catch(sql::SQLException& e) {
-                        connect_ready = false;
-                        show_login_error = true;
-                    }
-                }
-
-                if(show_login_error) {
-                    ImGui::NewLine();
-                    ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4(1, 0, 0, 1);
-                    ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Could not connect! Check login info!").x) / 2);
-                    ImGui::Text("Could not connect! Check login info!");
-                    ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4(1, 1, 1, 1);
-                }
-
-                ImGui::PopItemWidth();
-            }
-            ImGui::End();
+            case tasker::DisplayWindow::workspace_main:
+                break;
         }
 
+        //closing rendering frame, and drawing it on screen
         ImGui::Render();
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -137,6 +99,82 @@ int main() {
     return 0;
 }
 
+void display_connection_add(tasker::DisplayWindow& stage) {
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+    ImGui::SetNextWindowSize(ImVec2(500, 300));
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + (viewport->Size.x / 2) - 250, viewport->Pos.y + (viewport->Size.y / 2) - 250));
+    ImGui::SetWindowFocus("Add database");
+    sql::Connection* connection = nullptr;
+
+    if(ImGui::Begin("Add database", nullptr, flags)) {
+        ImGui::Text("Database IP: "); ImGui::SameLine();
+        static char ip[128] = "";
+        ImGui::PushItemWidth(250);
+        ImGui::SetCursorPosX(150);
+        ImGui::PushID(0);
+        ImGui::InputText("", ip, IM_ARRAYSIZE(ip));
+        ImGui::PopID();
+
+        ImGui::Text("Port:"); ImGui::SameLine();
+        static int port = 3306;
+        ImGui::SetCursorPosX(150);
+        ImGui::PushID(1);
+        ImGui::InputInt("", &port, 0, 0);
+        ImGui::PopID();
+        if(port < 0) port = 0;
+        else if(port > 65535) port = 65535;
+
+        ImGui::Text("Username: "); ImGui::SameLine();
+        static char username[128];
+        ImGui::SetCursorPosX(150);
+        ImGui::PushID(2);
+        ImGui::InputText("", username, IM_ARRAYSIZE(username));
+        ImGui::PopID();
+
+        static bool show_pass = false;
+
+        ImGui::Text("Password: "); ImGui::SameLine();
+        static char password[128];
+        ImGui::SetCursorPosX(150);
+        ImGui::PushID(3);
+        ImGui::InputText("", password, IM_ARRAYSIZE(password), (show_pass ? 0 : ImGuiInputTextFlags_Password) | ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::PopID();
+
+        ImGui::SetCursorPosX(150);
+        ImGui::Checkbox("Show", &show_pass);
+
+        ImGui::NewLine();
+        ImGui::SetCursorPosX(200);
+        bool connect_ready = ImGui::Button("Connect", ImVec2(100, 25));
+        static bool show_login_error = false;
+
+        if(connect_ready && !(ip[0] == '\0' || username[0] == '\0' || password[0] == '\0')) {
+            sql::Connection* con;
+            try {
+                connect_ready = false;
+                sql::Connection* con = get_driver_instance()->connect("tcp://" + ((std::string) ip) + ":" + std::to_string(port), (std::string) username, (std::string) password);
+                tasker::add_json_connection(tasker::json_sql_connection{(std::string) ip, port, (std::string) username, (std::string) password, ""});
+                stage = tasker::DisplayWindow::pick_workspace;
+                show_login_error = false;
+                delete con;
+            } catch(sql::SQLException& e) {
+                //delete con;
+                show_login_error = true;
+            }
+        }
+
+        if(show_login_error) {
+            ImGui::NewLine();
+            ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4(1, 0, 0, 1);
+            ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Could not connect! Check login info!").x) / 2);
+            ImGui::Text("Could not connect! Check login info!");
+            ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4(1, 1, 1, 1);
+        }
+
+        ImGui::End();
+    }
+}
 /*
 
 MySQL info scheme:

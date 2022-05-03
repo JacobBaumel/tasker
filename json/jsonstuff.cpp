@@ -8,7 +8,7 @@
 
 namespace tasker {
     void add_json_connection(const tasker::json_sql_connection& connection) {
-        std::ifstream file("../config.json");
+        std::ifstream file("config.json");
         std::stringstream stream;
         stream << file.rdbuf();
         json::JSON config = json::JSON::Load(stream.str());
@@ -30,13 +30,13 @@ namespace tasker {
         config["connections"][con_size]["password"] = connection.password;
         }
         if(connection.schema != "") config["connections"][con_size]["schemas"].append(connection.schema);
-        std::ofstream out("../config.json");
+        std::ofstream out("config.json");
         out << config;
     }
 
     void remove_json_connection(const tasker::json_sql_connection& connection) {
         if(connection.ip == "" || connection.username == "" || connection.password == "") return;
-        std::ifstream file("../config.json");
+        std::ifstream file("config.json");
         std::stringstream stream;
         stream << file.rdbuf();
         json::JSON config = json::JSON::Load(stream.str());
@@ -75,7 +75,7 @@ namespace tasker {
             }
         }
         
-        std::ofstream out("../config.json");
+        std::ofstream out("config.json");
         out << config;
     }
 }

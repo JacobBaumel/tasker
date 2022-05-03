@@ -1,7 +1,6 @@
 #ifndef JSON_STUFF_H
 #define JSON_STUFF_H
 
-#include "RSJParser.h"
 #include <iostream>
 
 namespace tasker {
