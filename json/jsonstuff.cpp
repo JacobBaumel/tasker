@@ -1,5 +1,5 @@
 #include "jsonstuff.h"
-#include "RSJParser.h"
+#include "../includes/RSJParser.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>

@@ -5,7 +5,7 @@
 #include <iostream>
 #include <cppconn/connection.h>
 #include <cppconn/driver.h>
-#include "json/jsonstuff.h"
+#include "includes/jsonstuff.h"
 #include <fstream>
 
 namespace tasker {
@@ -18,7 +18,7 @@ namespace tasker {
 
 void display_connection_add(tasker::DisplayWindow& stage);
 void display_workspace(tasker::json_sql_connection& connection);
-void display_worskapce_selection();
+void display_worskapce_selection(tasker::json_sql_connection& connection);
 
 int main() {
 
@@ -174,6 +174,10 @@ void display_connection_add(tasker::DisplayWindow& stage) {
 
         ImGui::End();
     }
+}
+
+void display_worskapce_selection(tasker::json_sql_connection& connection) {
+
 }
 /*
 

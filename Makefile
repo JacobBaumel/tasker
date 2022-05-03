@@ -6,7 +6,7 @@ SOURCES = main.cpp json/jsonstuff.cpp
 SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
 COMPILE_OBJECTS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(SOURCES)))))
-INCLUDES = -I $(IMGUI_DIR) -I $(IMGUI_DIR)/backends
+INCLUDES = -I $(IMGUI_DIR) -I $(IMGUI_DIR)/backends -I ./includes
 LIBS = -lmysqlcppconn -lGL `pkg-config --static --libs glfw3` `pkg-config --cflags glfw3`
 EXTRA_FLAGS = -std=c++11
 
