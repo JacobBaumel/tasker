@@ -29,7 +29,7 @@ namespace tasker {
         config["connections"][con_size]["username"] = connection.username;
         config["connections"][con_size]["password"] = connection.password;
         }
-        if(connection.schema != "") config["connections"][con_size]["schemas"].append(connection.schema);
+        if(connection.schema != NULL) config["connections"][con_size]["schemas"].append(*connection.schema);
         std::ofstream out("config.json");
         out << config;
     }
@@ -54,7 +54,7 @@ namespace tasker {
 
         if(!has_entry) return;
 
-        if(connection.schema == "") {
+        if(*connection.schema == "") {
             json::JSON connections = config["connections"];
             std::deque<json::JSON>::iterator it = connections.ArrayRange().begin();
             config["connections"] = json::Array();
@@ -71,11 +71,32 @@ namespace tasker {
             config["connections"][con_pos]["schemas"] = json::Array();
 
             for(; it < schemas.ArrayRange().end(); it++) {
-                if(it->ToString() != connection.schema) config["connections"][con_pos]["schemas"].append(*it);
+                if(it->ToString() != *connection.schema) config["connections"][con_pos]["schemas"].append(*it);
             }
         }
         
         std::ofstream out("config.json");
         out << config;
+    }
+
+    json_sql_connection_array* get_json_connections() {
+        std::stringstream stream;
+        {std::ifstream file("config.json");
+        stream << file.rdbuf();}
+        json::JSON config = json::JSON::Load(stream.str());
+
+        json_sql_connection_array* array = new json_sql_connection_array();
+        array->length = config["connections"].size();
+        array->connections = new json_sql_connection[array->length];
+
+        for(int i = 0; i < array->length; i++) {
+            std::string* schemas = new std::string[config["connections"][i]["schemas"].size()];
+            for(int j = 0; j < config["connections"][i]["schemas"].size(); j++) schemas[j] = config["connections"][i]["schemas"][j].ToString();
+            
+            array->connections[i] = json_sql_connection {config["connections"][i]["ip"].ToString(), (int) config["connections"][i]["port"].ToInt(),
+                config["connections"][i]["username"].ToString(), config["connections"][i]["password"].ToString(), schemas, config["connections"][i]["schemas"].size()};
+        }
+
+        return array;
     }
 }

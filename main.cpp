@@ -8,6 +8,7 @@
 #include "includes/jsonstuff.h"
 #include "includes/display_windows.h"
 #include <fstream>
+#include "Colors.h"
 
 int main() {
 
@@ -30,7 +31,6 @@ int main() {
         std::cerr << "Could not create a window!" << std::endl;
         return -1;
     }
-    
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
     IMGUI_CHECKVERSION();
@@ -40,12 +40,13 @@ int main() {
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
-    ImVec4 clear_color = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);
+
+    tasker::json_sql_connection connection;
     bool has_picked_workspace = false;
-    tasker::DisplayWindow stage = tasker::DisplayWindow::add_database;
+    tasker::DisplayWindowStage stage = tasker::DisplayWindowStage::pick_workspace;
 
     ImFont* ubuntu = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
-
+    
     //Main window loop
     while(!glfwWindowShouldClose(window)) {
         
@@ -56,18 +57,26 @@ int main() {
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
         ImGui::StyleColorsDark();
-        ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive] = ImVec4(0.263, 0.749, 0.004, 1);
+        ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive] = tasker::Colors::green;
+        ImGui::GetStyle().Colors[ImGuiCol_FrameBg] = tasker::Colors::background;
+        ImGui::GetStyle().Colors[ImGuiCol_Button] = tasker::Colors::background;
+        ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered] = tasker::Colors::hovered;
+        ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] = tasker::Colors::active;
+        ImGui::GetStyle().Colors[ImGuiCol_Tab] = tasker::Colors::hovered;
+        ImGui::GetStyle().Colors[ImGuiCol_TabActive] = tasker::Colors::green;
+        ImGui::GetStyle().Colors[ImGuiCol_TabHovered] = tasker::Colors::active;
+        
 
+
+        int latestId = 0;
         //actual program logic
         switch(stage) {
-            case tasker::DisplayWindow::add_database:
-                display_connection_add(stage);
+            case tasker::DisplayWindowStage::pick_workspace:
+                display_worskapce_selection(connection, stage, latestId);
                 break;
 
-            case tasker::DisplayWindow::pick_workspace:
-                break;
-
-            case tasker::DisplayWindow::workspace_main:
+            case tasker::DisplayWindowStage::workspace_main:
+                std::cout << connection.ip << "  " << connection.port << "  " << connection.schema << std::endl;
                 break;
         }
 
@@ -76,11 +85,10 @@ int main() {
         int display_w, display_h;
         glfwGetFramebufferSize(window, &display_w, &display_h);
         glViewport(0, 0, display_w, display_h);
-        glClearColor(clear_color.x * clear_color.w, clear_color.y * clear_color.w, clear_color.z * clear_color.w, clear_color.w);
+        glClearColor(0, 0, 0, 0);
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
-        
     }
 
     glfwDestroyWindow(window);
