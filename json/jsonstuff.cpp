@@ -34,7 +34,7 @@ namespace tasker {
     }
 
     void add_json_database(const tasker::json_database& database) {
-        int con_pos = add_json_connection(*database.connection);
+        int con_pos = add_json_connection(database.connection);
 
         json::JSON config;
         
@@ -89,10 +89,10 @@ namespace tasker {
             config = json::JSON::Load(stream.str());
         }
 
-        int con_pos = get_con_pos(config, *database.connection);
+        int con_pos = get_con_pos(config, database.connection);
 
         if(config["connections"][con_pos]["schemas"].size() <= 1) {
-            remove_json_connection(*database.connection);
+            remove_json_connection(database.connection);
             return;
         }
 
