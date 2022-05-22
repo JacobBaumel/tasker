@@ -6,8 +6,6 @@
 #include <vector>
 
 namespace tasker {
-
-    /*
     int get_con_pos(json::JSON& config, const tasker::json_sql_connection& connection);
 
     int add_json_connection(const tasker::json_sql_connection& connection) {
@@ -121,7 +119,7 @@ namespace tasker {
         }
 
         return con_pos;
-    }*/
+    }
 
     void get_databases(tasker::database_array& array) {
         json::JSON config;
