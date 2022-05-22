@@ -2,6 +2,8 @@
 #define JSON_STUFF_H
 
 #include <iostream>
+#include <vector>
+
 
 namespace tasker {
 
@@ -10,30 +12,26 @@ namespace tasker {
         int port;
         std::string username;
         std::string password;
-        std::string* schema;
-        int schema_number;
     };
 
-    struct json_sql_connection_array {
-        json_sql_connection* connections;
-        int length;
+    struct json_database {
+        json_sql_connection connection;
+        std::string schema;
 
-        ~json_sql_connection_array() {
-            for(int i = 0; i < length; i++) {
-                delete connections++;
-            }
-        }
-
-        json_sql_connection* operator[] (int index) {
-            return connections + index;
-        }
+        //~json_database() {delete connection;}
     };
 
-    void add_json_connection(const json_sql_connection& conn);
+    struct database_array {
+        std::vector<json_database> databases;
+        int size;
+    };
+
+    int add_json_connection(const json_sql_connection& conn);
+    void add_json_database(const tasker::json_database& database);
 
     void remove_json_connection(const json_sql_connection& conn);
 
-    json_sql_connection_array* get_json_connections();
+    void get_databases(tasker::database_array& array);
 }
 
 #endif
