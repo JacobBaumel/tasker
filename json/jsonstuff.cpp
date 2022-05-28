@@ -20,7 +20,7 @@ namespace tasker {
 
         int con_size = get_con_pos(config, connection);
 
-        if(con_size >= 0) {
+        if(con_size < 0) {
             con_size = config["connections"].size();
             config["connections"][con_size]["ip"] = connection.ip;
             config["connections"][con_size]["port"] = connection.port;
@@ -130,10 +130,8 @@ namespace tasker {
             config = json::JSON::Load(stream.str());
         }
         
-        int size = 0;
-        for(int i = 0; i < config["connections"].size(); i++) size += config["connections"][i]["schemas"].size();
-        array.size = size;
         array.databases = std::vector<tasker::json_database>();
+        array.connections = std::vector<tasker::json_sql_connection>();
 
         for(int i = 0; i < config["connections"].size(); i++) {
             tasker::json_sql_connection connection{config["connections"][i]["ip"].ToString(), int(config["connections"][i]["port"].ToInt()),
@@ -142,6 +140,8 @@ namespace tasker {
                 std::string schema = config["connections"][i]["schemas"][j].ToString();
                 array.databases.push_back(tasker::json_database{connection, schema});
             }
+
+            array.connections.push_back(connection);
         }
     }
 }

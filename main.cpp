@@ -76,7 +76,7 @@ int main() {
                 break;
 
             case tasker::DisplayWindowStage::workspace_main:
-                std::cout << connection.ip << "  " << connection.port << "  " << connection.schema << std::endl;
+                std::cout << connection.ip << "  " << connection.port << std::endl;
                 break;
         }
 
@@ -150,12 +150,12 @@ supertasks start alphabetical
 subtasks are as ordered in 
 
 Needed mysql functions:
-show all available databases for workspace options - done
-create new workspace - done
-initialize workspace (metadata) and tables people and stati - done
+show all available databases for workspace options
+create new workspace
+initialize workspace (metadata) and tables people and stati
 verify workspace integrity (all needed tables are present)
-create/modify/delete status - done
-create/modify/delete people - done
+create/modify/delete status
+create/modify/delete people
 create/modify/delete supertask
 create/modify/delete subtasks
 get all supertask tables

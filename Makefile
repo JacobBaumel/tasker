@@ -3,7 +3,7 @@ EXE = test.out
 BUILD_DIR = build
 IMGUI_DIR = ../imgui
 CXX = g++
-SOURCES = main.cpp json/jsonstuff.cpp display_windows.cpp
+SOURCES = main.cpp json/jsonstuff.cpp display_windows.cpp mysqlstuff/db_functions.cpp
 SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
 COMPILE_OBJECTS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(SOURCES)))))
@@ -20,6 +20,9 @@ endif
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
 %.o: json/$$(notdir $$(basename $$@)).cpp
+	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
+
+%.o: mysqlstuff/$$(notdir $$(basename $$@)).cpp
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
 %.o: $(IMGUI_DIR)/$$(notdir $$(basename $$@)).cpp

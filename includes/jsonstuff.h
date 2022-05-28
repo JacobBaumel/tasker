@@ -12,18 +12,22 @@ namespace tasker {
         int port;
         std::string username;
         std::string password;
+
+        bool operator==(const json_sql_connection& other) {
+            return ip == other.ip && port == other.port && username == other.username && password == other.password;
+        }
     };
 
     struct json_database {
         json_sql_connection connection;
         std::string schema;
-
-        //~json_database() {delete connection;}
     };
 
     struct database_array {
         std::vector<json_database> databases;
-        int size;
+        std::vector<json_sql_connection> connections;
+        json_database& get_database(int index) {return databases.at(index);}
+        json_sql_connection& get_connection(int index) {return connections.at(index);}
     };
 
     int add_json_connection(const json_sql_connection& conn);
