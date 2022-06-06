@@ -10,6 +10,7 @@
 #include <fstream>
 #include "Colors.h"
 
+static bool refresh = true;
 int main() {
 
     {if(!std::ifstream("config.json").good()) {std::ofstream("config.json") << "{\"connections\": []}";}}
@@ -41,15 +42,17 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    tasker::json_sql_connection connection;
+    tasker::json_database connection;
     bool has_picked_workspace = false;
     tasker::DisplayWindowStage stage = tasker::DisplayWindowStage::pick_workspace;
+    tasker::DisplayWindowStage previous_stage = stage;
 
     ImFont* ubuntu = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
+
+    tasker::static_pointers pointers {NULL, NULL, NULL, NULL, NULL};
     
     //Main window loop
     while(!glfwWindowShouldClose(window)) {
-        
         //setting up new rendering frame
         glfwPollEvents();
 
@@ -72,11 +75,11 @@ int main() {
         //actual program logic
         switch(stage) {
             case tasker::DisplayWindowStage::pick_workspace:
-                display_worskapce_selection(connection, stage, latestId);
+                display_worskapce_selection(connection, stage, latestId, refresh, pointers);
                 break;
 
             case tasker::DisplayWindowStage::workspace_main:
-                std::cout << connection.ip << "  " << connection.port << std::endl;
+                std::cout << connection.connection.ip << "  " << connection.connection.port << std::endl;
                 break;
         }
 

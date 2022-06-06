@@ -1,20 +1,16 @@
 #include "includes/display_windows.h"
-
 #include <cppconn/connection.h>
 #include <cppconn/driver.h>
-
 #include "Colors.h"
 #include "imgui.h"
 #include "db_functions.h"
 
-static bool refresh = true;
-
-void display_connection_add(bool& add_connection, tasker::database_array& connections) {
+void display_connection_add(bool& add_connection, tasker::database_array* connections, bool& refresh) {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
     ImGui::SetNextWindowSize(ImVec2(500, 300));
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + (viewport->Size.x / 2) - 250, viewport->Pos.y + (viewport->Size.y / 2) - 250));
-    //ImGui::SetNextWindowFocus();
+    ImGui::SetNextWindowFocus();
     static std::vector<std::string>* connection_options = NULL;
     static const char* current = NULL;
 
@@ -25,23 +21,25 @@ void display_connection_add(bool& add_connection, tasker::database_array& connec
                 refresh = false;
                 tasker::get_databases(connections);
                 connection_options = new std::vector<std::string>();
+                current = NULL;
 
-                for(int i = 0; i < connections.connections.size(); i++) {
-                    std::string option = connections.get_connection(i).ip;
-                    option.append(":").append(std::to_string(connections.get_connection(i).port));
+                for(int i = 0; i < connections->connections.size(); i++) {
+                    std::string option = connections->get_connection(i).ip;
+                    option.append(":").append(std::to_string(connections->get_connection(i).port));
                     if(i == 0) connection_options->push_back(option);
                     else if(option != connection_options->at(connection_options->size() - 1)) {
                         connection_options->push_back(option);
                     }
                 }
 
-                current = connection_options->at(0).c_str();   
+                if(connection_options->size() > 0) current = connection_options->at(0).c_str();   
             }
 
-            if(ImGui::BeginTabItem("Create New")) {
+            if(connection_options->size() > 0) {
+                if(ImGui::BeginTabItem("Create New")) {
                 ImGui::Text("Connection: ");
                 ImGui::SameLine();
-                if(ImGui::BeginCombo("##connection", current)) {
+                if(ImGui::BeginCombo("##connectionnn", current)) {
                     for(int i = 0; i < connection_options->size(); i++) {
                         bool selected = current == connection_options->at(i).c_str();
                         if(ImGui::Selectable(connection_options->at(i).c_str(), selected)) current = connection_options->at(i).c_str();
@@ -100,8 +98,8 @@ void display_connection_add(bool& add_connection, tasker::database_array& connec
                 static tasker::return_code does_exist;
                 if(input) {
                     int conn_number;
-                    for(conn_number = 0; conn_number < connections.connections.size(); conn_number++) if(current == connection_options->at(conn_number)) break;
-                    tasker::set_connection(connections.get_connection(conn_number));
+                    for(conn_number = 0; conn_number < connections->connections.size(); conn_number++) if(current == connection_options->at(conn_number)) break;
+                    tasker::set_connection(connections->get_connection(conn_number));
                     does_exist = tasker::does_workspace_exist(std::string(schema));
                 }
 
@@ -113,6 +111,7 @@ void display_connection_add(bool& add_connection, tasker::database_array& connec
                 }
 
 
+            }
             }
 
             if (ImGui::BeginTabItem("Add Connection")) {
@@ -179,6 +178,7 @@ void display_connection_add(bool& add_connection, tasker::database_array& connec
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Success!").x) / 2);
                     ImGui::Text("Success!");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
+                    refresh = true;
                 }
 
                 ImGui::EndTabItem();
@@ -197,12 +197,10 @@ void display_connection_add(bool& add_connection, tasker::database_array& connec
 
 }
 
-void display_worskapce_selection(tasker::json_sql_connection& connection, tasker::DisplayWindowStage& stage, int& latestId) {
-    static tasker::database_array connections;
-    if (refresh) {
-        tasker::get_databases(connections);
-        refresh = false;
-    }
+void display_worskapce_selection(tasker::json_database& connection, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::static_pointers& pointers) {
+    tasker::database_array* connections = (tasker::database_array*) pointers.p1;
+    connections = new tasker::database_array{};
+    if (refresh) tasker::get_databases(connections);
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse;
     ImGui::SetNextWindowSize(ImGui::GetMainViewport()->Size);
@@ -226,8 +224,8 @@ void display_worskapce_selection(tasker::json_sql_connection& connection, tasker
 
         int current_box = 1;
         bool picked;
-        for (int i = 0; i < connections.databases.size(); i++) {
-            if (connections.get_database(i).schema == "") continue;
+        for (int i = 0; i < connections->databases.size(); i++) {
+            if (connections->get_database(i).schema == "") continue;
             ImGui::PushID(latestId++);
             ImGui::SetCursorPosX(posX);
             ImGui::SetCursorPosY(posY);
@@ -237,12 +235,12 @@ void display_worskapce_selection(tasker::json_sql_connection& connection, tasker
             draw->AddRectFilled(ImVec2(posX, posY), ImVec2(posX + size.x, posY + size.y),
                                 ImColor((selected ? tasker::Colors::active : tasker::Colors::background)), rounding);
 
-            ImVec2 text_size = ImGui::CalcTextSize(connections.get_database(i).schema.c_str());
+            ImVec2 text_size = ImGui::CalcTextSize(connections->get_database(i).schema.c_str());
             ImGui::SetCursorPosX(posX + (size.x - text_size.x) / 2);
             ImGui::SetCursorPosY(posY + (size.y - text_size.y) / 2);
-            ImGui::TextUnformatted(connections.get_database(i).schema.c_str());
+            ImGui::TextUnformatted(connections->get_database(i).schema.c_str());
             ImGui::NewLine();
-            std::string ip = connections.get_database(i).connection.ip + ":" + std::to_string(connections.get_database(i).connection.port);
+            std::string ip = connections->get_database(i).connection.ip + ":" + std::to_string(connections->get_database(i).connection.port);
             ImGui::SetCursorPosX(posX + (size.x - ImGui::CalcTextSize(ip.c_str()).x) / 2);
             ImGui::TextUnformatted(ip.c_str());
             posX += spacing + size.x;
@@ -253,7 +251,7 @@ void display_worskapce_selection(tasker::json_sql_connection& connection, tasker
 
             current_box++;
             if (picked) {
-                connection = connections.get_database(i).connection;
+                connection = connections->get_database(i);
                 stage = tasker::DisplayWindowStage::workspace_main;
             }
         }
@@ -262,12 +260,13 @@ void display_worskapce_selection(tasker::json_sql_connection& connection, tasker
         ImGui::SetCursorPos(ImVec2((ImGui::GetWindowSize().x / 2) - 65, posY + spacing + size.y));
         if (ImGui::Button("Add", ImVec2(50, 50)) || add_connection) {
             add_connection = true;
-            display_connection_add(add_connection, connections);
+            display_connection_add(add_connection, connections, refresh);
         }
         // TODO fix positioning
         ImGui::SetCursorPos(ImVec2((ImGui::GetWindowSize().x / 2) - 5, posY + spacing + size.y));
-        refresh = ImGui::Button("Refresh", ImVec2(75, 50));
+        refresh = ImGui::Button("Refresh", ImVec2(75, 50)) || refresh;
 
         ImGui::End();
+
     }
 }
