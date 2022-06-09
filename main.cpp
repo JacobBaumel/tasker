@@ -10,7 +10,6 @@
 #include <fstream>
 #include "Colors.h"
 
-static bool refresh = true;
 int main() {
 
     {if(!std::ifstream("config.json").good()) {std::ofstream("config.json") << "{\"connections\": []}";}}
@@ -50,9 +49,14 @@ int main() {
     ImFont* ubuntu = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
 
     tasker::static_pointers pointers {NULL, NULL, NULL, NULL, NULL};
+
+    bool refresh = true;
+    bool prev_refresh = refresh;
     
     //Main window loop
     while(!glfwWindowShouldClose(window)) {
+        prev_refresh = refresh;
+
         //setting up new rendering frame
         glfwPollEvents();
 
@@ -92,6 +96,7 @@ int main() {
         glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         glfwSwapBuffers(window);
+        if(refresh && prev_refresh) refresh = false;
     }
 
     glfwDestroyWindow(window);

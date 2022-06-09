@@ -1,24 +1,25 @@
-#include "includes/display_windows.h"
+#include "display_windows.h"
 #include <cppconn/connection.h>
 #include <cppconn/driver.h>
 #include "Colors.h"
 #include "imgui.h"
 #include "db_functions.h"
+#include "jsonstuff.h"
 
 void display_connection_add(bool& add_connection, tasker::database_array* connections, bool& refresh) {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
     ImGui::SetNextWindowSize(ImVec2(500, 300));
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + (viewport->Size.x / 2) - 250, viewport->Pos.y + (viewport->Size.y / 2) - 250));
-    ImGui::SetNextWindowFocus();
+    
     static std::vector<std::string>* connection_options = NULL;
     static const char* current = NULL;
+    bool combo_focus = false;
 
     if (ImGui::Begin("Add new workspace", &add_connection, flags)) {
         if (ImGui::BeginTabBar("AddTab")) {
             if(refresh || connection_options == NULL) {
                 delete connection_options;
-                refresh = false;
                 tasker::get_databases(connections);
                 connection_options = new std::vector<std::string>();
                 current = NULL;
@@ -39,7 +40,9 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
                 if(ImGui::BeginTabItem("Create New")) {
                 ImGui::Text("Connection: ");
                 ImGui::SameLine();
+                
                 if(ImGui::BeginCombo("##connectionnn", current)) {
+                    combo_focus = true;
                     for(int i = 0; i < connection_options->size(); i++) {
                         bool selected = current == connection_options->at(i).c_str();
                         if(ImGui::Selectable(connection_options->at(i).c_str(), selected)) current = connection_options->at(i).c_str();
@@ -77,6 +80,7 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
                 ImGui::Text("Connection: ");
                 ImGui::SameLine();
                 if(ImGui::BeginCombo("##connection", current)) {
+                    combo_focus = true;
                     for(int i = 0; i < connection_options->size(); i++) {
                         bool selected = current == connection_options->at(i).c_str();
                         if(ImGui::Selectable(connection_options->at(i).c_str(), selected)) current = connection_options->at(i).c_str();
@@ -186,7 +190,7 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
 
             ImGui::EndTabBar();
         }
-
+        add_connection = ImGui::IsWindowFocused() || combo_focus;
         ImGui::End();
     }
 
@@ -198,9 +202,14 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
 }
 
 void display_worskapce_selection(tasker::json_database& connection, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::static_pointers& pointers) {
+    
     tasker::database_array* connections = (tasker::database_array*) pointers.p1;
-    connections = new tasker::database_array{};
-    if (refresh) tasker::get_databases(connections);
+    if (refresh) {
+        delete connections;
+        pointers.p1 = new tasker::database_array{};
+        connections = (tasker::database_array*) pointers.p1;
+        tasker::get_databases(connections);
+    }
 
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse;
     ImGui::SetNextWindowSize(ImGui::GetMainViewport()->Size);
