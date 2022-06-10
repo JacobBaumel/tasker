@@ -14,6 +14,7 @@ namespace tasker {
         Error = -1,
         False = 0,
         True = 1,
+        None = 2,
     };
 
     return_code has_open_connection();

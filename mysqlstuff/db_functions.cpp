@@ -68,7 +68,7 @@ namespace tasker {
             int num_results = result->rowsCount();
             delete stmt;
             delete result;
-            return num_results == 1 ? True : False;
+            return num_results >= 1 ? True : False;
         } catch(sql::SQLException& e) {
             std::cerr << "Error detecting databases!" << std::endl << e.what() << std::endl;
             delete stmt;

@@ -69,7 +69,7 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
                 ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 75) / 2);
 
                 if(ImGui::Button("Create", ImVec2(75, 25))) {
-                    
+                    refresh = true;
                 }
 
 
@@ -99,19 +99,40 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
                 ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 75) / 2);
                 bool input = ImGui::Button("Add", ImVec2(75, 25));
 
-                static tasker::return_code does_exist;
+                static tasker::return_code does_exist = tasker::None;
+                int conn_number;
                 if(input) {
-                    int conn_number;
                     for(conn_number = 0; conn_number < connections->connections.size(); conn_number++) if(current == connection_options->at(conn_number)) break;
-                    tasker::set_connection(connections->get_connection(conn_number));
-                    does_exist = tasker::does_workspace_exist(std::string(schema));
+                    if(tasker::set_connection(connections->get_connection(conn_number)) != tasker::Error) 
+                        does_exist = tasker::does_workspace_exist(std::string(schema));
+                    else does_exist = tasker::Error;
                 }
 
-                if(does_exist == tasker::return_code::False) {
+                if(does_exist == tasker::False) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::error_text;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Workspace does not exist! Please create it!").x) / 2);
                     ImGui::Text("Workspace does not exist! Please create it!");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
+                }
+
+                else if(does_exist == tasker::Error) {
+                    ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::error_text;
+                    ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Error connecting to database! D:").x) / 2);
+                    ImGui::Text("Error connecting to database! D:");
+                    ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
+                }
+
+                else if(does_exist == tasker::True) {
+                    ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::green;
+                    ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Sucess!").x) / 2);
+                    ImGui::Text("Sucess!");
+                    ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
+
+                    if(input) {
+                        tasker::add_json_database(tasker::json_database{connections->get_connection(conn_number), std::string(schema)});
+                        refresh = true;
+                        add_connection = false;
+                    }
                 }
 
 
@@ -190,7 +211,7 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
 
             ImGui::EndTabBar();
         }
-        add_connection = ImGui::IsWindowFocused() || combo_focus;
+        if(!add_connection) add_connection = ImGui::IsWindowFocused() || combo_focus;
         ImGui::End();
     }
 
