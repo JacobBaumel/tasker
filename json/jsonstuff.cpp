@@ -121,7 +121,7 @@ namespace tasker {
         return con_pos;
     }
 
-    void get_databases(tasker::database_array* array) {
+    void get_databases(tasker::database_array& array) {
         json::JSON config;
         {
             std::ifstream file("config.json");
@@ -130,18 +130,18 @@ namespace tasker {
             config = json::JSON::Load(stream.str());
         }
         
-        array->databases = std::vector<tasker::json_database>();
-        array->connections = std::vector<tasker::json_sql_connection>();
+        array.databases = std::vector<tasker::json_database>();
+        array.connections = std::vector<tasker::json_sql_connection>();
 
         for(int i = 0; i < config["connections"].size(); i++) {
             tasker::json_sql_connection connection{config["connections"][i]["ip"].ToString(), int(config["connections"][i]["port"].ToInt()),
                 config["connections"][i]["username"].ToString(), config["connections"][i]["password"].ToString()};
             for(int j = 0; j < config["connections"][i]["schemas"].size(); j++) {
                 std::string schema = config["connections"][i]["schemas"][j].ToString();
-                array->databases.push_back(tasker::json_database{connection, schema});
+                array.databases.push_back(tasker::json_database{connection, schema});
             }
 
-            array->connections.push_back(connection);
+            array.connections.push_back(connection);
         }
     }
 }

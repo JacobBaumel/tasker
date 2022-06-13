@@ -48,8 +48,6 @@ int main() {
 
     ImFont* ubuntu = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
 
-    tasker::static_pointers pointers {NULL, NULL, NULL, NULL, NULL};
-
     bool refresh = true;
     bool prev_refresh = refresh;
     
@@ -79,7 +77,7 @@ int main() {
         //actual program logic
         switch(stage) {
             case tasker::DisplayWindowStage::pick_workspace:
-                display_worskapce_selection(connection, stage, latestId, refresh, pointers);
+                display_worskapce_selection(connection, stage, latestId, refresh);
                 break;
 
             case tasker::DisplayWindowStage::workspace_main:

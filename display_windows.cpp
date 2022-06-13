@@ -6,7 +6,7 @@
 #include "db_functions.h"
 #include "jsonstuff.h"
 
-void display_connection_add(bool& add_connection, tasker::database_array* connections, bool& refresh) {
+void display_connection_add(bool& add_connection, tasker::database_array& connections, bool& refresh) {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
     ImGui::SetNextWindowSize(ImVec2(500, 300));
     ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -15,6 +15,7 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
     static std::vector<std::string>* connection_options = NULL;
     static const char* current = NULL;
     bool combo_focus = false;
+    static tasker::return_code success = tasker::return_code::None;
 
     if (ImGui::Begin("Add new workspace", &add_connection, flags)) {
         if (ImGui::BeginTabBar("AddTab")) {
@@ -24,9 +25,9 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
                 connection_options = new std::vector<std::string>();
                 current = NULL;
 
-                for(int i = 0; i < connections->connections.size(); i++) {
-                    std::string option = connections->get_connection(i).ip;
-                    option.append(":").append(std::to_string(connections->get_connection(i).port));
+                for(int i = 0; i < connections.connections.size(); i++) {
+                    std::string option = connections.get_connection(i).ip;
+                    option.append(":").append(std::to_string(connections.get_connection(i).port));
                     if(i == 0) connection_options->push_back(option);
                     else if(option != connection_options->at(connection_options->size() - 1)) {
                         connection_options->push_back(option);
@@ -68,8 +69,12 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
 
                 ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 75) / 2);
 
+                int conn_number;
                 if(ImGui::Button("Create", ImVec2(75, 25))) {
-                    refresh = true;
+                    for(conn_number = 0; conn_number < connections.connections.size(); conn_number++) if(current == connection_options->at(conn_number)) break;
+                    if(tasker::set_connection(connections.get_connection(conn_number)) != tasker::Error) 
+                        success = tasker::does_workspace_exist(std::string(workspace_name));
+                    else success = tasker::Error;
                 }
 
 
@@ -99,37 +104,36 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
                 ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 75) / 2);
                 bool input = ImGui::Button("Add", ImVec2(75, 25));
 
-                static tasker::return_code does_exist = tasker::None;
                 int conn_number;
                 if(input) {
-                    for(conn_number = 0; conn_number < connections->connections.size(); conn_number++) if(current == connection_options->at(conn_number)) break;
-                    if(tasker::set_connection(connections->get_connection(conn_number)) != tasker::Error) 
-                        does_exist = tasker::does_workspace_exist(std::string(schema));
-                    else does_exist = tasker::Error;
+                    for(conn_number = 0; conn_number < connections.connections.size(); conn_number++) if(current == connection_options->at(conn_number)) break;
+                    if(tasker::set_connection(connections.get_connection(conn_number)) != tasker::Error) 
+                        success = tasker::does_workspace_exist(std::string(schema));
+                    else success = tasker::Error;
                 }
 
-                if(does_exist == tasker::False) {
+                if(success == tasker::False) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::error_text;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Workspace does not exist! Please create it!").x) / 2);
                     ImGui::Text("Workspace does not exist! Please create it!");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
                 }
 
-                else if(does_exist == tasker::Error) {
+                else if(success == tasker::Error) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::error_text;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Error connecting to database! D:").x) / 2);
                     ImGui::Text("Error connecting to database! D:");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
                 }
 
-                else if(does_exist == tasker::True) {
+                else if(success == tasker::True) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::green;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Sucess!").x) / 2);
                     ImGui::Text("Sucess!");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
 
                     if(input) {
-                        tasker::add_json_database(tasker::json_database{connections->get_connection(conn_number), std::string(schema)});
+                        tasker::add_json_database(tasker::json_database{connections.get_connection(conn_number), std::string(schema)});
                         refresh = true;
                         add_connection = false;
                     }
@@ -176,7 +180,7 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
 
                 ImGui::NewLine();
                 ImGui::SetCursorPosX(200);
-                static tasker::return_code success = tasker::return_code::False;
+                
 
                 if (ImGui::Button("Connect", ImVec2(100, 25)) && !(ip[0] == '\0' || username[0] == '\0' || password[0] == '\0')) {
                     sql::Connection* con;
@@ -222,13 +226,11 @@ void display_connection_add(bool& add_connection, tasker::database_array* connec
 
 }
 
-void display_worskapce_selection(tasker::json_database& connection, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::static_pointers& pointers) {
+void display_worskapce_selection(tasker::json_database& connection, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh) {
     
-    tasker::database_array* connections = (tasker::database_array*) pointers.p1;
+    static tasker::database_array connections;
     if (refresh) {
-        delete connections;
-        pointers.p1 = new tasker::database_array{};
-        connections = (tasker::database_array*) pointers.p1;
+        connections = tasker::database_array();
         tasker::get_databases(connections);
     }
 
@@ -254,8 +256,8 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
 
         int current_box = 1;
         bool picked;
-        for (int i = 0; i < connections->databases.size(); i++) {
-            if (connections->get_database(i).schema == "") continue;
+        for (int i = 0; i < connections.databases.size(); i++) {
+            if (connections.get_database(i).schema == "") continue;
             ImGui::PushID(latestId++);
             ImGui::SetCursorPosX(posX);
             ImGui::SetCursorPosY(posY);
@@ -265,12 +267,12 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
             draw->AddRectFilled(ImVec2(posX, posY), ImVec2(posX + size.x, posY + size.y),
                                 ImColor((selected ? tasker::Colors::active : tasker::Colors::background)), rounding);
 
-            ImVec2 text_size = ImGui::CalcTextSize(connections->get_database(i).schema.c_str());
+            ImVec2 text_size = ImGui::CalcTextSize(connections.get_database(i).schema.c_str());
             ImGui::SetCursorPosX(posX + (size.x - text_size.x) / 2);
             ImGui::SetCursorPosY(posY + (size.y - text_size.y) / 2);
-            ImGui::TextUnformatted(connections->get_database(i).schema.c_str());
+            ImGui::TextUnformatted(connections.get_database(i).schema.c_str());
             ImGui::NewLine();
-            std::string ip = connections->get_database(i).connection.ip + ":" + std::to_string(connections->get_database(i).connection.port);
+            std::string ip = connections.get_database(i).connection.ip + ":" + std::to_string(connections.get_database(i).connection.port);
             ImGui::SetCursorPosX(posX + (size.x - ImGui::CalcTextSize(ip.c_str()).x) / 2);
             ImGui::TextUnformatted(ip.c_str());
             posX += spacing + size.x;
@@ -281,7 +283,7 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
 
             current_box++;
             if (picked) {
-                connection = connections->get_database(i);
+                connection = connections.get_database(i);
                 stage = tasker::DisplayWindowStage::workspace_main;
             }
         }
