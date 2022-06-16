@@ -59,7 +59,7 @@ namespace tasker {
         return_code::ERROR if an error occured
     */
     return_code does_workspace_exist(const std::string& name) {
-        if(connection == NULL || connection->isClosed()) return Error;
+        if(has_open_connection() != True) return Error;
         sql::Statement* stmt;
         sql::ResultSet* result;
         try {
@@ -76,4 +76,26 @@ namespace tasker {
             return Error;
         }
     }
+
+    return_code create_workspace(const std::string& name) {
+        if(has_open_connection() != True) return Error;
+        sql::Statement* stmt = NULL;
+
+        try {
+            stmt = connection->createStatement();
+            stmt->executeUpdate("create database " + name);
+            connection->setSchema(name);
+            delete stmt;
+            stmt = connection->createStatement();
+            stmt->executeUpdate("create table task_meta (name varchar(64), r int, g int, b int)");
+            stmt->executeUpdate("create table stati (name varchar(64), r int, g int, b int)");
+            delete stmt;
+        } catch(sql::SQLException& e) {
+            std::cerr << "Error creating workspace!" << std::endl << e.what() << std::endl;
+            delete stmt;
+            return Error;
+        }
+
+        return True;
+    } 
 }

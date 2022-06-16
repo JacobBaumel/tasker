@@ -20,6 +20,7 @@ namespace tasker {
     return_code has_open_connection();
     return_code set_connection(json_sql_connection& conn);
     return_code does_workspace_exist(const std::string& name);
+    return_code create_workspace(const std::string& name);
 }
 
 #endif
