@@ -104,7 +104,7 @@ namespace tasker {
             if(it->ToString() != database.schema) config["connections"][con_pos]["schemas"].append(*it);
         }
 
-        config["connections"][con_pos]["schemas"] = schemas;
+        //config["connections"][con_pos]["schemas"] = schemas;
         std::ofstream("config.json") << config;
     }
 

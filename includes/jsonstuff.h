@@ -34,6 +34,7 @@ namespace tasker {
     void add_json_database(const tasker::json_database& database);
 
     void remove_json_connection(const json_sql_connection& conn);
+    void remove_json_database(const json_database& database);
 
     void get_databases(tasker::database_array& array);
 }

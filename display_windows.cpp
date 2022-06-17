@@ -275,11 +275,17 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
         for (int i = 0; i < connections.databases.size(); i++) {
             if (connections.get_database(i).schema == "") continue;
             ImGui::PushID(latestId++);
-            ImGui::SetCursorPosX(posX);
-            ImGui::SetCursorPosY(posY);
-            picked = ImGui::InvisibleButton("##picked", size);
+            ImGui::SetCursorPos(ImVec2(posX, posY));
+            picked = ImGui::InvisibleButton("##picked" + latestId, ImVec2(size.x - 25, size.y));
             ImGui::PopID();
             bool selected = ImGui::IsItemHovered();
+
+            ImGui::PushID(latestId++);
+            ImGui::SetCursorPos(ImVec2(posX + size.x - 25, posY + 20));
+            picked = picked || ImGui::InvisibleButton("##picked" + latestId, ImVec2(25, size.y - 20));
+            ImGui::PopID();
+            selected = selected || ImGui::IsItemHovered();
+
             draw->AddRectFilled(ImVec2(posX, posY), ImVec2(posX + size.x, posY + size.y),
                                 ImColor((selected ? tasker::Colors::active : tasker::Colors::background)), rounding);
 
@@ -291,6 +297,16 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
             std::string ip = connections.get_database(i).connection.ip + ":" + std::to_string(connections.get_database(i).connection.port);
             ImGui::SetCursorPosX(posX + (size.x - ImGui::CalcTextSize(ip.c_str()).x) / 2);
             ImGui::TextUnformatted(ip.c_str());
+
+            ImGui::PushID(latestId++);
+            ImGui::SetCursorPos(ImVec2(posX + size.x - 25, posY + 5));
+            bool pushed = ImGui::InvisibleButton("##delete", ImVec2(15, 15));
+            bool hovered = ImGui::IsItemHovered();
+            ImGui::PopID();
+            
+            draw->AddLine(ImVec2(posX + size.x - 25, posY + 5), ImVec2(posX + size.x - 10, posY + 20), (hovered ? ImGui::GetColorU32(ImVec4(1, 1, 1, 1)) : ImGui::GetColorU32(tasker::Colors::green)), 1.5);
+            draw->AddLine(ImVec2(posX + size.x - 25, posY + 20), ImVec2(posX + size.x - 10, posY + 5), (hovered ? ImGui::GetColorU32(ImVec4(1, 1, 1, 1)) : ImGui::GetColorU32(tasker::Colors::green)), 1.5);
+            
             posX += spacing + size.x;
             if (current_box % row_size == 0) {
                 posY += spacing + size.y;
@@ -301,6 +317,11 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
             if (picked) {
                 connection = connections.get_database(i);
                 stage = tasker::DisplayWindowStage::workspace_main;
+            }
+            
+            if(pushed) {
+                tasker::remove_json_database(connections.get_database(i));
+                refresh = true;
             }
         }
         static bool add_connection;
