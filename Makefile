@@ -1,4 +1,4 @@
-DEBUG = n
+MODE = DEBUG
 EXE = test.out
 BUILD_DIR = build
 IMGUI_DIR = ../imgui
@@ -11,8 +11,12 @@ INCLUDES = -I $(IMGUI_DIR) -I $(IMGUI_DIR)/backends -I ./includes
 LIBS = -lmysqlcppconn -lGL `pkg-config --static --libs glfw3` `pkg-config --cflags glfw3`
 EXTRA_FLAGS = -std=c++11
 
-ifeq ($(DEBUG), y)
+ifeq ($(MODE), DEBUG)
 EXTRA_FLAGS += -g
+endif
+
+ifeq ($(MODE), PRODUCTION)
+EXTRA_FLAGS += -O3 -DNDEBUG -s
 endif
 
 .SECONDEXPANSION:

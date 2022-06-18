@@ -274,6 +274,7 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
         bool picked;
         for (int i = 0; i < connections.databases.size(); i++) {
             if (connections.get_database(i).schema == "") continue;
+            float scroll = ImGui::GetScrollY();
             ImGui::PushID(latestId++);
             ImGui::SetCursorPos(ImVec2(posX, posY));
             picked = ImGui::InvisibleButton("##picked" + latestId, ImVec2(size.x - 25, size.y));
@@ -286,7 +287,7 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
             ImGui::PopID();
             selected = selected || ImGui::IsItemHovered();
 
-            draw->AddRectFilled(ImVec2(posX, posY), ImVec2(posX + size.x, posY + size.y),
+            draw->AddRectFilled(ImVec2(posX, posY - scroll), ImVec2(posX + size.x, posY + size.y - scroll),
                                 ImColor((selected ? tasker::Colors::active : tasker::Colors::background)), rounding);
 
             ImVec2 text_size = ImGui::CalcTextSize(connections.get_database(i).schema.c_str());
@@ -304,8 +305,8 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
             bool hovered = ImGui::IsItemHovered();
             ImGui::PopID();
             
-            draw->AddLine(ImVec2(posX + size.x - 25, posY + 5), ImVec2(posX + size.x - 10, posY + 20), (hovered ? ImGui::GetColorU32(ImVec4(1, 1, 1, 1)) : ImGui::GetColorU32(tasker::Colors::green)), 1.5);
-            draw->AddLine(ImVec2(posX + size.x - 25, posY + 20), ImVec2(posX + size.x - 10, posY + 5), (hovered ? ImGui::GetColorU32(ImVec4(1, 1, 1, 1)) : ImGui::GetColorU32(tasker::Colors::green)), 1.5);
+            draw->AddLine(ImVec2(posX + size.x - 25, posY + 5 - scroll), ImVec2(posX + size.x - 10, posY + 20 - scroll), (hovered ? ImGui::GetColorU32(ImVec4(1, 1, 1, 1)) : ImGui::GetColorU32(tasker::Colors::green)), 1.5);
+            draw->AddLine(ImVec2(posX + size.x - 25, posY + 20 - scroll), ImVec2(posX + size.x - 10, posY + 5 - scroll), (hovered ? ImGui::GetColorU32(ImVec4(1, 1, 1, 1)) : ImGui::GetColorU32(tasker::Colors::green)), 1.5);
             
             posX += spacing + size.x;
             if (current_box % row_size == 0) {
