@@ -6,46 +6,44 @@
 #include "db_functions.h"
 #include "jsonstuff.h"
 
-void display_connection_add(bool& add_connection, tasker::database_array& connections, bool& refresh) {
+void display_connection_add(bool& add_connection, tasker::database_array& connections, bool& refresh, tasker::connection_add_statics& statics) {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
     ImGui::SetNextWindowSize(ImVec2(500, 300));
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + (viewport->Size.x / 2) - 250, viewport->Pos.y + (viewport->Size.y / 2) - 250));
     
-    static std::vector<std::string>* connection_options = NULL;
-    static const char* current = NULL;
     bool combo_focus = false;
 
     if (ImGui::Begin("Add new workspace", &add_connection, flags)) {
         if (ImGui::BeginTabBar("AddTab")) {
-            if(refresh || connection_options == NULL) {
-                delete connection_options;
+            if(refresh || statics.connection_options == NULL) {
+                delete statics.connection_options;
                 tasker::get_databases(connections);
-                connection_options = new std::vector<std::string>();
-                current = NULL;
+                statics.connection_options = new std::vector<std::string>();
+                statics.current = NULL;
 
                 for(int i = 0; i < connections.connections.size(); i++) {
                     std::string option = connections.get_connection(i).ip;
                     option.append(":").append(std::to_string(connections.get_connection(i).port));
-                    if(i == 0) connection_options->push_back(option);
-                    else if(option != connection_options->at(connection_options->size() - 1)) {
-                        connection_options->push_back(option);
+                    if(i == 0) statics.connection_options->push_back(option);
+                    else if(option != statics.connection_options->at(statics.connection_options->size() - 1)) {
+                        statics.connection_options->push_back(option);
                     }
                 }
 
-                if(connection_options->size() > 0) current = connection_options->at(0).c_str();   
+                if(statics.connection_options->size() > 0) statics.current = statics.connection_options->at(0).c_str();   
             }
 
-            if(connection_options->size() > 0) {
+            if(statics.connection_options->size() > 0) {
                 if(ImGui::BeginTabItem("Create New")) {
                 ImGui::Text("Connection: ");
                 ImGui::SameLine();
                 
-                if(ImGui::BeginCombo("##connectionnn", current)) {
+                if(ImGui::BeginCombo("##connectionnn", statics.current)) {
                     combo_focus = true;
-                    for(int i = 0; i < connection_options->size(); i++) {
-                        bool selected = current == connection_options->at(i).c_str();
-                        if(ImGui::Selectable(connection_options->at(i).c_str(), selected)) current = connection_options->at(i).c_str();
+                    for(int i = 0; i < statics.connection_options->size(); i++) {
+                        bool selected = statics.current == statics.connection_options->at(i).c_str();
+                        if(ImGui::Selectable(statics.connection_options->at(i).c_str(), selected)) statics.current = statics.connection_options->at(i).c_str();
                         if(selected) ImGui::SetItemDefaultFocus();
                     }
 
@@ -54,38 +52,36 @@ void display_connection_add(bool& add_connection, tasker::database_array& connec
                 
                 ImGui::Text("Workspace Name: ");
                 ImGui::SameLine();
-                static char workspace_name[64];
-                ImGui::InputText("##work_name", workspace_name, 64);
+                ImGui::InputText("##work_name", statics.workspace_name, 64);
 
                 ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 75) / 2);
 
                 int conn_number;
-                static tasker::return_code success = tasker::return_code::None;
                 if(ImGui::Button("Create", ImVec2(75, 25))) {
-                    for(conn_number = 0; conn_number < connections.connections.size(); conn_number++) if(current == connection_options->at(conn_number)) break;
-                    if(tasker::set_connection(connections.get_connection(conn_number)) == tasker::Error) success = tasker::Error;
-                    else if((success = tasker::does_workspace_exist(std::string(workspace_name))) == tasker::False) {
-                        success = tasker::create_workspace(workspace_name);
+                    for(conn_number = 0; conn_number < connections.connections.size(); conn_number++) if(statics.current == statics.connection_options->at(conn_number)) break;
+                    if(tasker::set_connection(connections.get_connection(conn_number)) == tasker::return_code::Error) statics.success1 = tasker::return_code::Error;
+                    else if((statics.success1 = tasker::does_workspace_exist(std::string(statics.workspace_name))) == tasker::return_code::False) {
+                        statics.success1 = tasker::create_workspace(statics.workspace_name);
                     }
-                    tasker::add_json_database(tasker::json_database{connections.get_connection(conn_number), std::string(workspace_name)});
+                    tasker::add_json_database(tasker::json_database{connections.get_connection(conn_number), std::string(statics.workspace_name)});
                     refresh = true;
                 }
 
-                if(success == tasker::True) {
+                if(statics.success1 == tasker::return_code::True) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::green;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Sucess!").x) / 2);
                     ImGui::Text("Sucess!");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
                 }
 
-                else if(success == tasker::False) {
+                else if(statics.success1 == tasker::return_code::False) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = ImVec4(1, 0.65, 0, 1);
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Workspace already exists! Adding now.").x) / 2);
                     ImGui::Text("Workspace already exists!");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
                 }
 
-                else if(success == tasker::Error) {
+                else if(statics.success1 == tasker::return_code::Error) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::error_text;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Error connecting to database! D:").x) / 2);
                     ImGui::Text("Error connecting to database! D:");
@@ -99,11 +95,11 @@ void display_connection_add(bool& add_connection, tasker::database_array& connec
             if(ImGui::BeginTabItem("Add Existing")) {
                 ImGui::Text("Connection: ");
                 ImGui::SameLine();
-                if(ImGui::BeginCombo("##connection", current)) {
+                if(ImGui::BeginCombo("##connection", statics.current)) {
                     combo_focus = true;
-                    for(int i = 0; i < connection_options->size(); i++) {
-                        bool selected = current == connection_options->at(i).c_str();
-                        if(ImGui::Selectable(connection_options->at(i).c_str(), selected)) current = connection_options->at(i).c_str();
+                    for(int i = 0; i < statics.connection_options->size(); i++) {
+                        bool selected = statics.current == statics.connection_options->at(i).c_str();
+                        if(ImGui::Selectable(statics.connection_options->at(i).c_str(), selected)) statics.current = statics.connection_options->at(i).c_str();
                         if(selected) ImGui::SetItemDefaultFocus();
                     }
 
@@ -112,44 +108,42 @@ void display_connection_add(bool& add_connection, tasker::database_array& connec
 
                 ImGui::Text("Workspace Name: ");
                 ImGui::SameLine();
-                static char schema[128] = "";
-                ImGui::InputText("##workspace_name", schema, IM_ARRAYSIZE(schema));
+                ImGui::InputText("##workspace_name", statics.schema, IM_ARRAYSIZE(statics.schema));
                 ImGui::EndTabItem();
 
                 ImGui::SetCursorPosX((ImGui::GetWindowSize().x - 75) / 2);
                 bool input = ImGui::Button("Add", ImVec2(75, 25));
 
                 int conn_number;
-                static tasker::return_code success = tasker::None;
                 if(input) {
-                    for(conn_number = 0; conn_number < connections.connections.size(); conn_number++) if(current == connection_options->at(conn_number)) break;
-                    if(tasker::set_connection(connections.get_connection(conn_number)) != tasker::Error) 
-                        success = tasker::does_workspace_exist(std::string(schema));
-                    else success = tasker::Error;
+                    for(conn_number = 0; conn_number < connections.connections.size(); conn_number++) if(statics.current == statics.connection_options->at(conn_number)) break;
+                    if(tasker::set_connection(connections.get_connection(conn_number)) != tasker::return_code::Error) 
+                        statics.success2 = tasker::does_workspace_exist(std::string(statics.schema));
+                    else statics.success2 = tasker::return_code::Error;
                 }
 
-                if(success == tasker::False) {
+                if(statics.success2 == tasker::return_code::False) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::error_text;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Workspace does not exist! Please create it!").x) / 2);
                     ImGui::Text("Workspace does not exist! Please create it!");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
                 }
 
-                else if(success == tasker::Error) {
+                else if(statics.success2 == tasker::return_code::Error) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::error_text;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Error connecting to database! D:").x) / 2);
                     ImGui::Text("Error connecting to database! D:");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
                 }
 
-                else if(success == tasker::True) {
+                else if(statics.success2 == tasker::return_code::True) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::green;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Sucess!").x) / 2);
                     ImGui::Text("Sucess!");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
 
                     if(input) {
-                        tasker::add_json_database(tasker::json_database{connections.get_connection(conn_number), std::string(schema)});
+                        tasker::add_json_database(tasker::json_database{connections.get_connection(conn_number), std::string(statics.schema)});
                         refresh = true;
                         add_connection = false;
                     }
@@ -162,63 +156,56 @@ void display_connection_add(bool& add_connection, tasker::database_array& connec
             if (ImGui::BeginTabItem("Add Connection")) {
                 ImGui::Text("Database IP: ");
                 ImGui::SameLine();
-                static char ip[128] = "";
                 ImGui::PushItemWidth(250);
                 ImGui::SetCursorPosX(150);
-                ImGui::InputText("##ip", ip, IM_ARRAYSIZE(ip));
+                ImGui::InputText("##ip", statics.ip, IM_ARRAYSIZE(statics.ip));
 
                 ImGui::Text("Port:");
                 ImGui::SameLine();
-                static int port = 3306;
                 ImGui::SetCursorPosX(150);
-                ImGui::InputInt("##port", &port, 0, 0);
-                if (port < 0)
-                    port = 0;
-                else if (port > 65535)
-                    port = 65535;
+                ImGui::InputInt("##port", &statics.port, 0, 0);
+                if (statics.port < 0)
+                    statics.port = 0;
+                else if (statics.port > 65535)
+                    statics.port = 65535;
 
                 ImGui::Text("Username: ");
                 ImGui::SameLine();
-                static char username[128];
                 ImGui::SetCursorPosX(150);
-                ImGui::InputText("##username", username, IM_ARRAYSIZE(username));
-
-                static bool show_pass = false;
+                ImGui::InputText("##username", statics.username, IM_ARRAYSIZE(statics.username));
 
                 ImGui::Text("Password: ");
                 ImGui::SameLine();
-                static char password[128];
                 ImGui::SetCursorPosX(150);
-                ImGui::InputText("##password", password, IM_ARRAYSIZE(password), (show_pass ? 0 : ImGuiInputTextFlags_Password) | ImGuiInputTextFlags_EnterReturnsTrue);
+                ImGui::InputText("##password", statics.password, IM_ARRAYSIZE(statics.password), (statics.show_pass ? 0 : ImGuiInputTextFlags_Password) | ImGuiInputTextFlags_EnterReturnsTrue);
 
                 ImGui::SetCursorPosX(150);
-                ImGui::Checkbox("Show", &show_pass);
+                ImGui::Checkbox("Show", &statics.show_pass);
 
                 ImGui::NewLine();
                 ImGui::SetCursorPosX(200);
                 
-                static tasker::return_code success = tasker::return_code::None;
-                if (ImGui::Button("Connect", ImVec2(100, 25)) && !(ip[0] == '\0' || username[0] == '\0' || password[0] == '\0')) {
+                if (ImGui::Button("Connect", ImVec2(100, 25)) && !(statics.ip[0] == '\0' || statics.username[0] == '\0' || statics.password[0] == '\0')) {
                     sql::Connection* con;
                     try {
-                        con = get_driver_instance()->connect("tcp://" + ((std::string)ip) + ":" + std::to_string(port), (std::string)username, (std::string)password);
-                        tasker::add_json_connection(tasker::json_sql_connection{(std::string)ip, port, (std::string)username, (std::string)password});
+                        con = get_driver_instance()->connect("tcp://" + ((std::string)statics.ip) + ":" + std::to_string(statics.port), (std::string)statics.username, (std::string)statics.password);
+                        tasker::add_json_connection(tasker::json_sql_connection{(std::string)statics.ip, statics.port, (std::string)statics.username, (std::string)statics.password});
                         delete con;
                         refresh = true;
-                        success = tasker::return_code::True;
+                        statics.success3 = tasker::return_code::True;
                     } catch (sql::SQLException& e) {
-                        success = tasker::return_code::Error;
+                        statics.success3 = tasker::return_code::Error;
                     }
                 }
 
-                if (success == tasker::return_code::Error) {
+                if (statics.success3 == tasker::return_code::Error) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::error_text;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Could not connect! Check login info!").x) / 2);
                     ImGui::Text("Could not connect! Check login info!");
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::text;
                 }
 
-                if(success == tasker::return_code::True) {
+                if(statics.success3 == tasker::return_code::True) {
                     ImGui::GetStyle().Colors[ImGuiCol_Text] = tasker::Colors::green;
                     ImGui::SetCursorPosX((ImGui::GetWindowSize().x - ImGui::CalcTextSize("Success!").x) / 2);
                     ImGui::Text("Success!");
@@ -236,15 +223,14 @@ void display_connection_add(bool& add_connection, tasker::database_array& connec
     }
 
     if(!add_connection) {
-        delete connection_options;
-        connection_options = NULL;
+        delete statics.connection_options;
+        statics.connection_options = NULL;
     }
 
 }
 
-void display_worskapce_selection(tasker::json_database& connection, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh) {
+void display_worskapce_selection(tasker::json_database& connection, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::database_array& connections, bool& add_connection, tasker::connection_add_statics& statics) {
     
-    static tasker::database_array connections;
     if (refresh) {
         connections = tasker::database_array();
         tasker::get_databases(connections);
@@ -325,12 +311,11 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
                 refresh = true;
             }
         }
-        static bool add_connection;
 
         ImGui::SetCursorPos(ImVec2((ImGui::GetWindowSize().x / 2) - 65, posY + spacing + size.y));
         if (ImGui::Button("Add", ImVec2(50, 50)) || add_connection) {
             add_connection = true;
-            display_connection_add(add_connection, connections, refresh);
+            display_connection_add(add_connection, connections, refresh, statics);
         }
         // TODO fix positioning
         ImGui::SetCursorPos(ImVec2((ImGui::GetWindowSize().x / 2) - 5, posY + spacing + size.y));

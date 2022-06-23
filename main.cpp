@@ -10,6 +10,12 @@
 #include <fstream>
 #include "Colors.h"
 
+void pre_rendering();
+void post_rendering(GLFWwindow* window);
+
+bool refresh = true;
+bool prev_refresh = refresh;
+
 int main() {
 
     {if(!std::ifstream("config.json").good()) {std::ofstream("config.json") << "{\"connections\": []}";}}
@@ -47,59 +53,66 @@ int main() {
     tasker::DisplayWindowStage previous_stage = stage;
 
     ImFont* ubuntu = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
-
-    bool refresh = true;
-    bool prev_refresh = refresh;
     
     //Main window loop
     while(!glfwWindowShouldClose(window)) {
-        prev_refresh = refresh;
-
-        //setting up new rendering frame
-        glfwPollEvents();
-
-        ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplGlfw_NewFrame();
-        ImGui::NewFrame();
-        ImGui::StyleColorsDark();
-        ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive] = tasker::Colors::green;
-        ImGui::GetStyle().Colors[ImGuiCol_FrameBg] = tasker::Colors::background;
-        ImGui::GetStyle().Colors[ImGuiCol_Button] = tasker::Colors::background;
-        ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered] = tasker::Colors::hovered;
-        ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] = tasker::Colors::active;
-        ImGui::GetStyle().Colors[ImGuiCol_Tab] = tasker::Colors::hovered;
-        ImGui::GetStyle().Colors[ImGuiCol_TabActive] = tasker::Colors::green;
-        ImGui::GetStyle().Colors[ImGuiCol_TabHovered] = tasker::Colors::active;
-        
-
-
-        int latestId = 0;
-        //actual program logic
         switch(stage) {
             case tasker::DisplayWindowStage::pick_workspace:
-                display_worskapce_selection(connection, stage, latestId, refresh);
+                {
+                tasker::database_array connections{};
+                bool add_connection = false;
+                tasker::connection_add_statics statics{};
+                while(!glfwWindowShouldClose(window) && stage == tasker::DisplayWindowStage::pick_workspace) {
+                    pre_rendering();
+                    int latestId = 0;
+                    display_worskapce_selection(connection, stage, latestId, refresh, connections, add_connection, statics);
+                    post_rendering(window);
+                }
                 break;
-
+                }
             case tasker::DisplayWindowStage::workspace_main:
-                std::cout << connection.connection.ip << "  " << connection.connection.port << std::endl;
+                while(!glfwWindowShouldClose(window) && stage == tasker::DisplayWindowStage::workspace_main) {
+                    pre_rendering();
+                    post_rendering(window);
+                }
                 break;
         }
-
-        //closing rendering frame, and drawing it on screen
-        ImGui::Render();
-        int display_w, display_h;
-        glfwGetFramebufferSize(window, &display_w, &display_h);
-        glViewport(0, 0, display_w, display_h);
-        glClearColor(0, 0, 0, 0);
-        glClear(GL_COLOR_BUFFER_BIT);
-        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-        glfwSwapBuffers(window);
-        if(refresh && prev_refresh) refresh = false;
     }
 
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
+}
+
+void pre_rendering() {
+    prev_refresh = refresh;
+
+    glfwPollEvents();
+
+    ImGui_ImplOpenGL3_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    ImGui::StyleColorsDark();
+    ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive] = tasker::Colors::green;
+    ImGui::GetStyle().Colors[ImGuiCol_FrameBg] = tasker::Colors::background;
+    ImGui::GetStyle().Colors[ImGuiCol_Button] = tasker::Colors::background;
+    ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered] = tasker::Colors::hovered;
+    ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] = tasker::Colors::active;
+    ImGui::GetStyle().Colors[ImGuiCol_Tab] = tasker::Colors::hovered;
+    ImGui::GetStyle().Colors[ImGuiCol_TabActive] = tasker::Colors::green;
+    ImGui::GetStyle().Colors[ImGuiCol_TabHovered] = tasker::Colors::active;
+}
+
+void post_rendering(GLFWwindow* window) {
+    ImGui::Render();
+    int display_w, display_h;
+    glfwGetFramebufferSize(window, &display_w, &display_h);
+    glViewport(0, 0, display_w, display_h);
+    glClearColor(0, 0, 0, 0);
+    glClear(GL_COLOR_BUFFER_BIT);
+    ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+    glfwSwapBuffers(window);
+    if(refresh && prev_refresh) refresh = false;
 }
 
 /*

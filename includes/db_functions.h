@@ -10,7 +10,7 @@
 #include <cppconn/prepared_statement.h>
 
 namespace tasker {
-    enum return_code {
+    enum class return_code {
         Error = -1,
         False = 0,
         True = 1,
