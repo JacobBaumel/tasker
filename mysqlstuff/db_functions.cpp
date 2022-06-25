@@ -21,11 +21,11 @@ namespace tasker {
     */
     return_code has_open_connection() {
         try {
-            if(connection == NULL) return False;
-            return connection->isClosed() ? False : True;
+            if(connection == NULL) return tasker::return_code::False;
+            return connection->isClosed() ? tasker::return_code::False : tasker::return_code::True;
         } catch(sql::SQLException& e) {
             std::cerr << "Error determining if connection is open!" << std::endl << e.what() << std::endl;
-            return Error;
+            return tasker::return_code::Error;
         }
     }
 
@@ -37,18 +37,18 @@ namespace tasker {
         return_code::Error if failure
     */
     return_code set_connection(json_sql_connection& conn) {
-        if(conn == previous) return False;
+        if(conn == previous) return tasker::return_code::False;
         try {
             connection = get_driver_instance()->connect("tcp://" + conn.ip + ":" + std::to_string(conn.port), conn.username, conn.password);
-            if(!connection->isValid() || connection->isClosed()) return Error;
+            if(!connection->isValid() || connection->isClosed()) return tasker::return_code::Error;
         } catch(sql::SQLException& e) {
             std::cerr << "Could not connect to server!" << std::endl << e.what() << std::endl;
-            return Error;
+            return tasker::return_code::Error;
         }
 
         previous = conn;
 
-        return True;
+        return tasker::return_code::True;
     }
     
     /*
@@ -59,7 +59,7 @@ namespace tasker {
         return_code::ERROR if an error occured
     */
     return_code does_workspace_exist(const std::string& name) {
-        if(has_open_connection() != True) return Error;
+        if(has_open_connection() != tasker::return_code::True) return tasker::return_code::Error;
         sql::Statement* stmt;
         sql::ResultSet* result;
         try {
@@ -68,17 +68,17 @@ namespace tasker {
             int num_results = result->rowsCount();
             delete stmt;
             delete result;
-            return num_results >= 1 ? True : False;
+            return num_results >= 1 ? tasker::return_code::True : tasker::return_code::False;
         } catch(sql::SQLException& e) {
             std::cerr << "Error detecting databases!" << std::endl << e.what() << std::endl;
             delete stmt;
             delete result;
-            return Error;
+            return tasker::return_code::Error;
         }
     }
 
     return_code create_workspace(const std::string& name) {
-        if(has_open_connection() != True) return Error;
+        if(has_open_connection() != tasker::return_code::True) return tasker::return_code::Error;
         sql::Statement* stmt = NULL;
 
         try {
@@ -93,9 +93,9 @@ namespace tasker {
         } catch(sql::SQLException& e) {
             std::cerr << "Error creating workspace!" << std::endl << e.what() << std::endl;
             delete stmt;
-            return Error;
+            return tasker::return_code::Error;
         }
 
-        return True;
+        return tasker::return_code::True;
     } 
 }
