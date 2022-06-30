@@ -6,9 +6,10 @@
 #include <cppconn/prepared_statement.h>
 #include "db_functions.h"
 #include "jsonstuff.h"
+#include "display_windows.h"
+#include <map>
 
 namespace tasker {
-
     sql::Connection* connection = NULL;
     json_sql_connection previous;
 
@@ -98,4 +99,61 @@ namespace tasker {
 
         return tasker::return_code::True;
     } 
+
+    return_code set_schema(const std::string& schema) {
+        if(has_open_connection() != tasker::return_code::True) return tasker::return_code::Error;
+        try {
+            connection->setSchema(schema);
+        } catch(sql::SQLException& e) {
+            std::cerr << "Error setting schema!" << std::endl << e.what() << std::endl;
+            return tasker::return_code::Error;
+        }
+
+        return tasker::return_code::True;
+    }
+
+    return_code get_data(workspace& config) {
+        if(has_open_connection() != tasker::return_code::True && connection->getSchema() != "") return tasker::return_code::Error;
+        sql::Statement* stmt = NULL;
+        sql::ResultSet* result = NULL;
+        config = workspace();
+
+        try {
+            config.name = connection->getSchema();
+            stmt = connection->createStatement();
+            result = stmt->executeQuery("select * from stati");
+            while(result->next())
+                config.stati.push_back(new tasker::status{result->getString("name"), ImColor(result->getInt("r"), result->getInt("g"), result->getInt("b"))});
+            
+            delete result;
+            std::map<std::string, ImColor> colors;
+            result = stmt->executeQuery("select * from tasks_meta");
+            while(result->next())
+                colors.insert(std::pair<std::string, ImColor>(result->getString("name"), ImColor{result->getInt("r"), result->getInt("g"), result->getInt("b")}));
+            delete result;
+            
+            result = stmt->executeQuery("show tables");
+            while(result->next()) {
+                std::string table = result->getString("Tables_in_" + connection->getSchema());
+                if(table.substr(0, 5) != "task_") continue;
+                tasker::supertask* task = new tasker::supertask();
+                task->name = table.substr(5);
+                task->color = colors.at(table.substr(5));
+                
+                sql::ResultSet* tasks = stmt->executeQuery("select * from " + table);
+                while(tasks->next()) 
+                    task->tasks.push_back(new tasker::task{config.get_status(tasks->getString("status")), tasks->getString("task"), tasks->getString("date"), tasks->getString("people")});
+            
+                config.tasks.push_back(task);
+            }
+            
+            delete stmt;
+        } catch(sql::SQLException& e) {
+            std::cerr << "Error loading workspace!" << std::endl << e.what() << std::endl;
+            delete stmt;
+            delete result;
+            return tasker::return_code::Error;
+        }
+        return tasker::return_code::True;
+    }
 }

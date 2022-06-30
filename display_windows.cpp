@@ -1,3 +1,5 @@
+#define TASKER_DEBUG
+
 #include "display_windows.h"
 #include <cppconn/connection.h>
 #include <cppconn/driver.h>
@@ -5,6 +7,22 @@
 #include "imgui.h"
 #include "db_functions.h"
 #include "jsonstuff.h"
+
+
+#ifdef TASKER_DEBUG
+void print_workspace(const tasker::workspace& config) {
+    std::cout << "Workspace name: " << config.name << std::endl << "Available stati: " << std::endl;
+    for(tasker::status* s : config.stati) std::cout << s->name << ": " << s->color << std::endl;
+    for(tasker::supertask* s : config.tasks) {
+        std::cout << s->name << ": " << s->color << std::endl << "Tasks:" << std::endl;
+        for(tasker::task* t : s->tasks) {
+            std::cout << t->taskk << std::endl; 
+            std::cout << "Status: " << (t->statuss->name) << std::endl << "Date: " << t->date << std::endl << "People: " << t->people;
+        }
+    }
+}
+#endif
+
 
 void display_connection_add(bool& add_connection, tasker::database_array& connections, bool& refresh, tasker::connection_add_statics& statics) {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
@@ -323,5 +341,14 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
 
         ImGui::End();
 
+    }
+}
+
+void display_workspace(tasker::json_database& database, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config) {
+    if(refresh) {
+        tasker::set_connection(database.connection);
+        tasker::set_schema(database.schema);
+        tasker::get_data(config);
+        print_workspace(config);
     }
 }

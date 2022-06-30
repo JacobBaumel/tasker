@@ -2,6 +2,8 @@
 #define DISPLAY_WINDOWS_H
 #include "jsonstuff.h"
 #include "db_functions.h"
+#include "imgui.h"
+#include <vector>
 
 namespace tasker {
     enum class DisplayWindowStage {
@@ -25,7 +27,7 @@ namespace tasker {
     };
 };
 
-void display_workspace(tasker::json_sql_connection& connection, tasker::DisplayWindowStage& stage, int& latestId);
+void display_workspace(tasker::json_database& connection, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config);
 void display_worskapce_selection(tasker::json_database& connection, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::database_array& connections, bool& add_connection, tasker::connection_add_statics& statics);
 
 #endif

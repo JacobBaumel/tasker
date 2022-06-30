@@ -71,8 +71,12 @@ int main() {
                 break;
                 }
             case tasker::DisplayWindowStage::workspace_main:
+                refresh = true;
+                tasker::workspace config;
                 while(!glfwWindowShouldClose(window) && stage == tasker::DisplayWindowStage::workspace_main) {
                     pre_rendering();
+                    int latestId = 0;
+                    display_workspace(connection, stage, latestId, refresh, config);
                     post_rendering(window);
                 }
                 break;
