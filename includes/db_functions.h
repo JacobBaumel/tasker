@@ -20,27 +20,50 @@ namespace tasker {
     };
 
     struct status {
-        std::string name;
+        char name[256] = "";
         ImColor color;
+
+        status(const std::string& _name, const int& r, const int& g, const int& b) {
+            std::copy(&_name[0], &_name[_name.length()], name);
+            color = ImColor(r, g, b, 150);
+        }
     };
 
     struct task {
         status* statuss;
-        std::string taskk;
-        std::string date;
-        std::string people;
+        char taskk[256] = "";
+        char date[256] = "";
+        char people[256] = "";
+        int pos;
+
+        task(status* _statuss, const std::string& _taskk, const std::string& _date, const std::string& _people, const int& pos) {
+            statuss = _statuss;
+            std::copy(&_taskk[0], &_taskk[_taskk.length()], taskk);
+            std::copy(&_date[0], &_date[_date.length()], date);
+            std::copy(&_people[0], &_people[_people.length()], people);
+        }
     };
 
     struct supertask {
         std::vector<task*> tasks;
         ImColor color;
-        std::string name;
+        char name[256] = "";
+        bool collapsed = false;
+
+        supertask(const std::string& _name, const ImColor& _color) {
+            std::copy(&_name[0], &_name[_name.length()], name);
+            color = _color;
+        }
     };
 
     struct workspace {
         std::vector<status*> stati;
         std::vector<supertask*> tasks;
-        std::string name;
+        char name[256] = "";
+
+        workspace(const std::string& _name) {
+            std::copy(&_name[0], &_name[_name.length()], name);
+        }
 
         ~workspace() {
             for(status* s : stati) delete s;
@@ -48,7 +71,8 @@ namespace tasker {
         }
 
         status* get_status(const std::string& name) {
-            for(status* s : stati) if(s->name == name) return s;
+            status* toreturn;
+            for(status* s : stati) if(std::string(s->name) == name) return s;
             return nullptr;
         }
     };

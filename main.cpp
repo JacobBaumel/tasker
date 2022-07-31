@@ -47,9 +47,9 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    tasker::json_database connection;
+    tasker::json_database connection = tasker::json_database{tasker::json_sql_connection{"", 0, "", ""}, ""};
     bool has_picked_workspace = false;
-    tasker::DisplayWindowStage stage = tasker::DisplayWindowStage::pick_workspace;
+    tasker::DisplayWindowStage stage = tasker::DisplayWindowStage::workspace_main;
     tasker::DisplayWindowStage previous_stage = stage;
 
     ImFont* ubuntu = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
@@ -72,7 +72,7 @@ int main() {
                 }
             case tasker::DisplayWindowStage::workspace_main:
                 refresh = true;
-                tasker::workspace config;
+                tasker::workspace config("");
                 while(!glfwWindowShouldClose(window) && stage == tasker::DisplayWindowStage::workspace_main) {
                     pre_rendering();
                     int latestId = 0;
@@ -98,7 +98,7 @@ void pre_rendering() {
     ImGui::NewFrame();
     ImGui::StyleColorsDark();
     ImGui::GetStyle().Colors[ImGuiCol_TitleBgActive] = tasker::Colors::green;
-    ImGui::GetStyle().Colors[ImGuiCol_FrameBg] = tasker::Colors::background;
+    //ImGui::GetStyle().Colors[ImGuiCol_FrameBg] = tasker::Colors::background;
     ImGui::GetStyle().Colors[ImGuiCol_Button] = tasker::Colors::background;
     ImGui::GetStyle().Colors[ImGuiCol_ButtonHovered] = tasker::Colors::hovered;
     ImGui::GetStyle().Colors[ImGuiCol_ButtonActive] = tasker::Colors::active;

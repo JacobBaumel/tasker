@@ -10,7 +10,7 @@ SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui
 SOURCES += $(JSON11_DIR)/json11.cpp
 COMPILE_OBJECTS = $(addprefix $(BUILD_DIR)/, $(addsuffix .o, $(basename $(notdir $(SOURCES)))))
 INCLUDES = -I $(IMGUI_DIR) -I $(IMGUI_DIR)/backends -I ./includes -I $(JSON11_DIR)
-LIBS = -lmysqlcppconn -lGL `pkg-config --static --libs glfw3` `pkg-config --cflags glfw3`
+LIBS = -lmysqlcppconn -lGL -lglfw
 EXTRA_FLAGS = -std=c++11
 
 ifeq ($(MODE), DEBUG)

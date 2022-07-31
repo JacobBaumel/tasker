@@ -13,16 +13,21 @@
 void print_workspace(const tasker::workspace& config) {
     std::cout << "Workspace name: " << config.name << std::endl << "Available stati: " << std::endl;
     for(tasker::status* s : config.stati) std::cout << s->name << ": " << s->color << std::endl;
+    std::cout << std::endl;
     for(tasker::supertask* s : config.tasks) {
         std::cout << s->name << ": " << s->color << std::endl << "Tasks:" << std::endl;
         for(tasker::task* t : s->tasks) {
             std::cout << t->taskk << std::endl; 
-            std::cout << "Status: " << (t->statuss->name) << std::endl << "Date: " << t->date << std::endl << "People: " << t->people;
+            std::cout << "Status: " << (t->statuss->name) << std::endl << "Date: " << t->date << std::endl << "People: " << t->people << std::endl;
         }
+        std::cout << std::endl;
     }
 }
 #endif
 
+ImVec4 alphaShift(ImVec4 in, float alpha) {
+    return ImVec4(in.x, in.y, in.z, alpha);
+}
 
 void display_connection_add(bool& add_connection, tasker::database_array& connections, bool& refresh, tasker::connection_add_statics& statics) {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
@@ -344,11 +349,108 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
     }
 }
 
+void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati);
+
 void display_workspace(tasker::json_database& database, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config) {
     if(refresh) {
         tasker::set_connection(database.connection);
         tasker::set_schema(database.schema);
         tasker::get_data(config);
-        print_workspace(config);
+        //print_workspace(config);
     }
+    
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse;
+    ImGui::SetNextWindowSize(ImGui::GetMainViewport()->Size);
+    ImGui::SetNextWindowPos(ImGui::GetMainViewport()->Pos);
+    bool open = true;
+    if (ImGui::Begin(database.schema.c_str(), &open, flags)) {
+        int y = 50 - ImGui::GetScrollY();
+        for(tasker::supertask* s : config.tasks) draw_supertask(s, y, latestId, config.stati);
+        ImGui::Dummy(ImVec2(0, y + 100));
+    }
+    ImGui::End();
+
+    if(!open) {
+        stage = tasker::DisplayWindowStage::pick_workspace;
+        refresh = true;
+    }
+}
+
+void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati) {
+    float scroll = ImGui::GetScrollY();
+    ImDrawList* draw = ImGui::GetWindowDrawList();
+    bool isDark = ((task->color.Value.x + task->color.Value.y + task->color.Value.z) / 3) < 0.33;
+
+    ImColor main_color = isDark ? ImColor(ImVec4(1, 1, 1, 1)) : ImColor(ImVec4(0, 0, 0, 1));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, alphaShift(task->color.Value, 0.25));
+    ImGui::PushStyleColor(ImGuiCol_Text, main_color.Value);
+    if(isDark) draw->AddRectFilled(ImVec2(48, y - 2), ImVec2(ImGui::GetWindowSize().x - 48, y + 37), ImColor(ImVec4(1, 1, 1, 1)), 5);
+    draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(ImGui::GetWindowSize().x - 50, y + 35 - ImGui::GetScrollY()), task->color, 5);
+    ImGui::SetCursorPos(ImVec2(75, y + 7));
+    ImGui::TextUnformatted(task->name);
+    ImGui::PopStyleColor();
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+
+    if(!task->collapsed) draw->AddTriangleFilled(ImVec2(55, y + 15 - scroll), ImVec2(62.5, y + 25 - scroll), ImVec2(70, y + 15 - scroll), main_color);
+    else draw->AddTriangleFilled(ImVec2(60, y + 10 - scroll), ImVec2(60, y + 25 - scroll), ImVec2(67.5, y + 17.5 - scroll), main_color);
+    
+    ImGui::SetCursorPos(ImVec2(55, y + 10));
+    bool pushed = ImGui::InvisibleButton(std::string("##task_opening_").append(task->name).c_str(), ImVec2(15, 15));
+    if(ImGui::IsItemHovered()) draw->AddCircleFilled(ImVec2(62.5, y + 17.5 - scroll), 9, ImColor(ImVec4(0.5, 0.5, 0.5, 0.5)));
+    if(!task->collapsed) {
+        y += 40;
+        for(tasker::task* t : task->tasks) {
+            draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(ImGui::GetWindowSize().x - 50, y + 35 - ImGui::GetScrollY()), ImColor(ImVec4(0.25, 0.25, 0.25, 1)), 5);
+            draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(55, y + 35 - ImGui::GetScrollY()), task->color);
+            ImGui::SetCursorPos(ImVec2(60, y + 3));
+            ImGui::PushItemWidth((ImGui::GetWindowSize().x - 100) / 2);
+            ImGui::InputText(std::string("##task_input_").append(std::to_string(latestId++)).c_str(), &t->taskk[0], IM_ARRAYSIZE(t->taskk));
+            ImGui::PopItemWidth();
+
+            ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 100) / 2) + 70), y + 3));
+            ImGui::PushItemWidth((ImGui::GetWindowSize().x - 100) / 3);
+            ImGui::InputText(std::string("##dwafewgreht").append(std::to_string(latestId++)).c_str(), &t->people[0], IM_ARRAYSIZE(t->people));
+            ImGui::PopItemWidth();
+
+
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, t->statuss->color.Value);
+            int color_shift = 1.5;
+            ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(t->statuss->color.Value.x * color_shift, t->statuss->color.Value.y * color_shift, t->statuss->color.Value.z * color_shift, 0.8));
+            ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 100) * (5.0 / 6.0)) + 80), y + 3));
+            ImGui::PushItemWidth(((ImGui::GetWindowSize().x - 100) / 6) - 50);
+            bool edited = false;
+            if(ImGui::BeginCombo(std::string("##status_selector_").append(std::to_string(latestId++)).c_str(), &t->statuss->name[0], ImGuiComboFlags_NoArrowButton)) {
+                edited = true;
+                bool first = true;
+                for(int i = 0; i < stati.size(); i++) {
+                    bool selected = t->statuss == stati.at(i);
+                    ImGui::PushStyleColor(ImGuiCol_Button, alphaShift(stati.at(i)->color.Value, (selected ? 0.9 : 0.8)));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, alphaShift(stati.at(i)->color.Value, 0.95));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, alphaShift(stati.at(i)->color.Value, 1));
+                    if(ImGui::Button(&stati.at(i)->name[0], ImVec2(ImGui::GetItemRectMax().x - ImGui::GetItemRectMin().x - (first ? 10 : 0), 0))) t->statuss = stati.at(i);
+                    if(first) first = false;
+                    ImGui::PopStyleColor();
+                    ImGui::PopStyleColor();
+                    ImGui::PopStyleColor();
+                    if(selected) ImGui::SetItemDefaultFocus();
+                }
+
+                ImGui::EndCombo();
+            }
+
+            if(edited) {
+                //server stuff
+            }
+            ImGui::PopStyleColor();
+            ImGui::PopStyleColor();
+
+            
+            y += 40;
+        }
+    }
+    if(pushed) task->collapsed = !task->collapsed;
+
+    ImGui::PopStyleColor();
+    ImGui::PopStyleColor();
+    y += 50;
 }
