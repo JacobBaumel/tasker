@@ -35,9 +35,12 @@ namespace tasker {
         char date[256] = "";
         char people[256] = "";
         int pos;
+        int id;
 
-        task(status* _statuss, const std::string& _taskk, const std::string& _date, const std::string& _people, const int& pos) {
+        task(status* _statuss, const std::string& _taskk, const std::string& _date, const std::string& _people, const int& _pos, const int& _id) {
             statuss = _statuss;
+            pos = _pos;
+            id = _id;
             std::copy(&_taskk[0], &_taskk[_taskk.length()], taskk);
             std::copy(&_date[0], &_date[_date.length()], date);
             std::copy(&_people[0], &_people[_people.length()], people);
@@ -83,5 +86,6 @@ namespace tasker {
     return_code create_workspace(const std::string& name);
     return_code get_data(workspace& config);
     return_code set_schema(const std::string& schema);
+    return_code update_task(const std::string& table, task* t);
 }
 #endif

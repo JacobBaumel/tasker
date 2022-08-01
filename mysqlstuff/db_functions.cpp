@@ -112,7 +112,7 @@ namespace tasker {
     }
 
     return_code get_data(workspace& config) {
-        if(has_open_connection() != tasker::return_code::True && connection->getSchema() != "") return tasker::return_code::Error;
+        if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
         sql::Statement* stmt = NULL;
         sql::ResultSet* result = NULL;        
         
@@ -138,7 +138,7 @@ namespace tasker {
                 
                 sql::ResultSet* tasks = stmt->executeQuery("select * from " + table + " order by pos");
                 while(tasks->next()) 
-                    task->tasks.push_back(new tasker::task(config.get_status(tasks->getString("status")), tasks->getString("task"), tasks->getString("date"), tasks->getString("people"), tasks->getInt("pos")));
+                    task->tasks.push_back(new tasker::task(config.get_status(tasks->getString("status")), tasks->getString("task"), tasks->getString("date"), tasks->getString("people"), tasks->getInt("pos"), tasks->getInt("idd")));
             
                 config.tasks.push_back(task);
             }
@@ -151,5 +151,28 @@ namespace tasker {
             return tasker::return_code::Error;
         }
         return tasker::return_code::True;
+    }
+
+    return_code update_task(const std::string& table, task* t) {
+        if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
+        sql::PreparedStatement* stmt;
+
+        try {
+            stmt = connection->prepareStatement("update task_" + table + " set task=?, status=?, people=?, date=?, pos=? where idd=?");
+            //stmt->setString(1, "task_" + table); No idea why but the prepared statement doesnt like setString for the table name
+            stmt->setString(1, t->taskk);
+            stmt->setString(2, t->statuss->name);
+            stmt->setString(3, t->people);
+            stmt->setString(4, t->date);
+            stmt->setInt(5, t->pos);
+            stmt->setInt(6, t->id);
+            stmt->execute();
+        } catch(sql::SQLException& e) {
+            std::cout << "Error updating server!" << std::endl << e.what() << std::endl;
+            delete stmt;
+            return return_code::Error;
+        }
+
+        return return_code::True;
     }
 }

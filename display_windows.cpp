@@ -349,13 +349,13 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
     }
 }
 
-void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati);
+void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema);
 
 void display_workspace(tasker::json_database& database, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config) {
     if(refresh) {
         tasker::set_connection(database.connection);
         tasker::set_schema(database.schema);
-        tasker::get_data(config);
+        if(tasker::get_data(config) == tasker::return_code::Error) std::cout << "Error getting data from workspace!!" << std::endl;
         //print_workspace(config);
     }
     
@@ -365,7 +365,7 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
     bool open = true;
     if (ImGui::Begin(database.schema.c_str(), &open, flags)) {
         int y = 50 - ImGui::GetScrollY();
-        for(tasker::supertask* s : config.tasks) draw_supertask(s, y, latestId, config.stati);
+        for(tasker::supertask* s : config.tasks) draw_supertask(s, y, latestId, config.stati, &database.schema[0]);
         ImGui::Dummy(ImVec2(0, y + 100));
     }
     ImGui::End();
@@ -376,7 +376,7 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
     }
 }
 
-void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati) {
+void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema) {
     float scroll = ImGui::GetScrollY();
     ImDrawList* draw = ImGui::GetWindowDrawList();
     bool isDark = ((task->color.Value.x + task->color.Value.y + task->color.Value.z) / 3) < 0.33;
@@ -420,14 +420,16 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
             ImGui::PushItemWidth(((ImGui::GetWindowSize().x - 100) / 6) - 50);
             bool edited = false;
             if(ImGui::BeginCombo(std::string("##status_selector_").append(std::to_string(latestId++)).c_str(), &t->statuss->name[0], ImGuiComboFlags_NoArrowButton)) {
-                edited = true;
                 bool first = true;
                 for(int i = 0; i < stati.size(); i++) {
                     bool selected = t->statuss == stati.at(i);
                     ImGui::PushStyleColor(ImGuiCol_Button, alphaShift(stati.at(i)->color.Value, (selected ? 0.9 : 0.8)));
                     ImGui::PushStyleColor(ImGuiCol_ButtonHovered, alphaShift(stati.at(i)->color.Value, 0.95));
                     ImGui::PushStyleColor(ImGuiCol_ButtonActive, alphaShift(stati.at(i)->color.Value, 1));
-                    if(ImGui::Button(&stati.at(i)->name[0], ImVec2(ImGui::GetItemRectMax().x - ImGui::GetItemRectMin().x - (first ? 10 : 0), 0))) t->statuss = stati.at(i);
+                    if(ImGui::Button(&stati.at(i)->name[0], ImVec2(ImGui::GetItemRectMax().x - ImGui::GetItemRectMin().x - (first ? 10 : 0), 0))) {
+                        t->statuss = stati.at(i);
+                        edited = true;
+                    }
                     if(first) first = false;
                     ImGui::PopStyleColor();
                     ImGui::PopStyleColor();
@@ -439,7 +441,8 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
             }
 
             if(edited) {
-                //server stuff
+                ImGui::SetWindowFocus(schema);
+                tasker::update_task(task->name, t);
             }
             ImGui::PopStyleColor();
             ImGui::PopStyleColor();
