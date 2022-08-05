@@ -7,6 +7,7 @@
 #include "imgui.h"
 #include "db_functions.h"
 #include "jsonstuff.h"
+#include "ctime"
 
 
 #ifdef TASKER_DEBUG
@@ -351,7 +352,7 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
 
 void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema);
 
-void display_workspace(tasker::json_database& database, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config) {
+void display_workspace(tasker::json_database& database, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config, time_t& timer) {
     if(refresh) {
         tasker::set_connection(database.connection);
         tasker::set_schema(database.schema);
@@ -359,12 +360,30 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
         //print_workspace(config);
     }
     
+    
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoCollapse;
     ImGui::SetNextWindowSize(ImGui::GetMainViewport()->Size);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->Pos);
     bool open = true;
     if (ImGui::Begin(database.schema.c_str(), &open, flags)) {
-        int y = 50 - ImGui::GetScrollY();
+        int y = 100 - ImGui::GetScrollY();
+
+        ImGui::SetCursorPos(ImVec2(50, 50));
+        ImGui::Button("New", ImVec2(100, 25));
+        ImGui::SameLine();
+        if(ImGui::Button("Refresh", ImVec2(100, 25))) {
+            refresh = true;
+            time(&timer);
+        }
+
+        {
+            time_t temp;
+            time(&temp);
+            if(abs(timer - temp) < 6) {
+                ImGui::SameLine();
+                ImGui::TextColored(ImVec4(0, 1, 0, 1), "Refreshed!");
+            }
+        }
         for(tasker::supertask* s : config.tasks) draw_supertask(s, y, latestId, config.stati, &database.schema[0]);
         ImGui::Dummy(ImVec2(0, y + 100));
     }
