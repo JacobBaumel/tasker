@@ -402,16 +402,20 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
         for(tasker::task* t : task->tasks) {
             draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(ImGui::GetWindowSize().x - 50, y + 35 - ImGui::GetScrollY()), ImColor(ImVec4(0.25, 0.25, 0.25, 1)), 5);
             draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(55, y + 35 - ImGui::GetScrollY()), task->color);
+
+            bool changed = false;
+
             ImGui::SetCursorPos(ImVec2(60, y + 3));
             ImGui::PushItemWidth((ImGui::GetWindowSize().x - 100) / 2);
-            ImGui::InputText(std::string("##task_input_").append(std::to_string(latestId++)).c_str(), &t->taskk[0], IM_ARRAYSIZE(t->taskk));
+            changed = changed || ImGui::InputText(std::string("##task_input_").append(std::to_string(latestId++)).c_str(), &t->taskk[0], IM_ARRAYSIZE(t->taskk), ImGuiInputTextFlags_EnterReturnsTrue);
+            changed = changed || ImGui::IsItemActive();
             ImGui::PopItemWidth();
 
             ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 100) / 2) + 70), y + 3));
             ImGui::PushItemWidth((ImGui::GetWindowSize().x - 100) / 3);
-            ImGui::InputText(std::string("##dwafewgreht").append(std::to_string(latestId++)).c_str(), &t->people[0], IM_ARRAYSIZE(t->people));
+            bool isTyping = ImGui::InputText(std::string("##task_people_").append(std::to_string(latestId++)).c_str(), &t->people[0], IM_ARRAYSIZE(t->people), ImGuiInputTextFlags_EnterReturnsTrue);
             ImGui::PopItemWidth();
-
+            changed = changed || ImGui::IsItemActive() || isTyping; // Honestly no idea, but separating (just this last one) into a separate bool fixed a weird rendering issue
 
             ImGui::PushStyleColor(ImGuiCol_FrameBg, t->statuss->color.Value);
             int color_shift = 1.5;
@@ -439,11 +443,12 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
 
                 ImGui::EndCombo();
             }
+            changed = changed || edited;
 
-            if(edited) {
-                ImGui::SetWindowFocus(schema);
-                tasker::update_task(task->name, t);
-            }
+            if(edited) ImGui::SetWindowFocus(schema); // This schema is so imgui can focus on the window and close the combo, not for updating mysql
+
+            if(t->wasSelected && !changed) tasker::update_task(task->name, t);
+            t->wasSelected = changed;
             ImGui::PopStyleColor();
             ImGui::PopStyleColor();
 

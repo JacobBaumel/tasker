@@ -36,6 +36,7 @@ namespace tasker {
         char people[256] = "";
         int pos;
         int id;
+        bool wasSelected = false;
 
         task(status* _statuss, const std::string& _taskk, const std::string& _date, const std::string& _people, const int& _pos, const int& _id) {
             statuss = _statuss;
