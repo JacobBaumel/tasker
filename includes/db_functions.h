@@ -64,6 +64,9 @@ namespace tasker {
         std::vector<status*> stati;
         std::vector<supertask*> tasks;
         char name[256] = "";
+        char new_category[256] = "";
+        float new_color[3] = {0, 0, 0};
+        bool create_cat = false;
 
         workspace(const std::string& _name) {
             std::copy(&_name[0], &_name[_name.length()], name);

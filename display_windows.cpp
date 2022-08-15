@@ -351,6 +351,7 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
 }
 
 void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema);
+void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_size, bool& refresh);
 
 void display_workspace(tasker::json_database& database, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config, time_t& timer) {
     if(refresh) {
@@ -369,7 +370,12 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
         int y = 100 - ImGui::GetScrollY();
 
         ImGui::SetCursorPos(ImVec2(50, 50));
-        ImGui::Button("New", ImVec2(100, 25));
+        if(ImGui::Button("New Category", ImVec2(150, 25)) || config.create_cat) {
+            config.create_cat = true;
+            create_new(config.create_cat, config.new_color, config.new_category, IM_ARRAYSIZE(config.new_category), refresh);
+        }
+        ImGui::SameLine();
+        ImGui::Button("Manage Statuses", ImVec2(150, 25));
         ImGui::SameLine();
         if(ImGui::Button("Refresh", ImVec2(100, 25))) {
             refresh = true;
@@ -480,4 +486,34 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
     ImGui::PopStyleColor();
     ImGui::PopStyleColor();
     y += 50;
+}
+
+void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_size, bool& refresh) {
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+    ImGui::SetNextWindowSize(ImVec2(500, 500));
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + (viewport->Size.x / 2) - 250, viewport->Pos.y + (viewport->Size.y / 2) - 250));
+
+    if(ImGui::Begin("Create New Category", &create_cat, flags)) {
+        
+        ImGui::ColorPicker3("New Color", colors);
+        bool isColorPicking = ImGui::IsItemActive();
+        ImGui::TextUnformatted("Category name: ");
+        ImGui::SameLine();
+        ImGui::InputText("##new_cat_name", buffer, buff_size);
+        bool create;
+        {
+            constexpr int button_size = 100;
+            ImGui::SetCursorPosX((ImGui::GetWindowSize().x - button_size) / 2);
+            create = ImGui::Button("Create", ImVec2(button_size, 25));
+        }
+        if(create) {
+            //actually create the workspace
+            refresh = true;
+            create_cat = false;
+        }
+
+        create_cat = create_cat && ImGui::IsWindowFocused();
+        ImGui::End();
+    }
 }
