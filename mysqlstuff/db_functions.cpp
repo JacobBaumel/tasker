@@ -134,7 +134,9 @@ namespace tasker {
             while(result->next()) {
                 std::string table = result->getString("Tables_in_" + connection->getSchema());
                 if(table.substr(0, 5) != "task_") continue;
-                tasker::supertask* task = new tasker::supertask(table.substr(5), colors.at(table.substr(5)));
+                std::string display = table.substr(5);
+                for(int i = 0; i < display.length(); i++) if(display[i] == '_') display[i] = ' ';
+                tasker::supertask* task = new tasker::supertask(table.substr(5), display, colors.at(table.substr(5)));
                 
                 sql::ResultSet* tasks = stmt->executeQuery("select * from " + table + " order by pos");
                 while(tasks->next()) 
@@ -169,6 +171,33 @@ namespace tasker {
             stmt->execute();
         } catch(sql::SQLException& e) {
             std::cout << "Error updating server!" << std::endl << e.what() << std::endl;
+            delete stmt;
+            return return_code::Error;
+        }
+
+        return return_code::True;
+    }
+
+    return_code create_category(const std::string& _name, float* colors) {
+        if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
+        sql::PreparedStatement* stmt;
+        std::string name = _name;
+        for(int i = 0; i < name.length(); i++) if(isspace(name[i])) name[i] = '_';
+
+        try {
+            stmt = connection->prepareStatement("create table task_" + name + "(task varchar(256), status varchar(64), people varchar(256), date varchar(16), pos int DEFAULT 0, idd int NOT NULL AUTO_INCREMENT, primary key(idd))");
+            stmt->executeUpdate();
+            delete stmt;
+
+            stmt = connection->prepareStatement("insert into tasks_meta(name, r, g, b) values(?, ?, ?, ?)");
+            stmt->setString(1, name);
+            stmt->setInt(2, (int) (255 * colors[0]));
+            stmt->setInt(3, (int) (255 * colors[1]));
+            stmt->setInt(4, (int) (255 * colors[2]));
+            stmt->executeUpdate();
+            delete stmt;
+        } catch(sql::SQLException& e) {
+            std::cout << "Error creating new category!" << std::endl << e.what() <<std::endl;
             delete stmt;
             return return_code::Error;
         }

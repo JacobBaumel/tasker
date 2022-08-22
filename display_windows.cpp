@@ -412,7 +412,7 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
     if(isDark) draw->AddRectFilled(ImVec2(48, y - 2), ImVec2(ImGui::GetWindowSize().x - 48, y + 37), ImColor(ImVec4(1, 1, 1, 1)), 5);
     draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(ImGui::GetWindowSize().x - 50, y + 35 - ImGui::GetScrollY()), task->color, 5);
     ImGui::SetCursorPos(ImVec2(75, y + 7));
-    ImGui::TextUnformatted(task->name);
+    ImGui::TextUnformatted(task->display_name);
     ImGui::PopStyleColor();
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
 
@@ -501,6 +501,7 @@ void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_s
         ImGui::TextUnformatted("Category name: ");
         ImGui::SameLine();
         ImGui::InputText("##new_cat_name", buffer, buff_size);
+
         bool create;
         {
             constexpr int button_size = 100;
@@ -508,7 +509,7 @@ void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_s
             create = ImGui::Button("Create", ImVec2(button_size, 25));
         }
         if(create) {
-            //actually create the workspace
+            tasker::create_category(buffer, colors);
             refresh = true;
             create_cat = false;
         }

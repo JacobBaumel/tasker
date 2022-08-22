@@ -52,10 +52,12 @@ namespace tasker {
         std::vector<task*> tasks;
         ImColor color;
         char name[256] = "";
+        char display_name[256] = "";
         bool collapsed = false;
 
-        supertask(const std::string& _name, const ImColor& _color) {
+        supertask(const std::string& _name, const std::string& _display_name, const ImColor& _color) {
             std::copy(&_name[0], &_name[_name.length()], name);
+            std::copy(&_display_name[0], &_display_name[_display_name.length()], display_name);
             color = _color;
         }
     };
@@ -91,5 +93,6 @@ namespace tasker {
     return_code get_data(workspace& config);
     return_code set_schema(const std::string& schema);
     return_code update_task(const std::string& table, task* t);
+    return_code create_category(const std::string& name, float* color);
 }
 #endif
