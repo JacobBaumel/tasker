@@ -94,5 +94,6 @@ namespace tasker {
     return_code set_schema(const std::string& schema);
     return_code update_task(const std::string& table, task* t);
     return_code create_category(const std::string& name, float* color);
+    return_code drop_category(const std::string& category);
 }
 #endif

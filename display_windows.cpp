@@ -350,7 +350,7 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
     }
 }
 
-void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema);
+void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema, bool& refresh);
 void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_size, bool& refresh);
 
 void display_workspace(tasker::json_database& database, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config, time_t& timer) {
@@ -390,7 +390,7 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
                 ImGui::TextColored(ImVec4(0, 1, 0, 1), "Refreshed!");
             }
         }
-        for(tasker::supertask* s : config.tasks) draw_supertask(s, y, latestId, config.stati, &database.schema[0]);
+        for(tasker::supertask* s : config.tasks) draw_supertask(s, y, latestId, config.stati, &database.schema[0], refresh);
         ImGui::Dummy(ImVec2(0, y + 100));
     }
     ImGui::End();
@@ -401,7 +401,7 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
     }
 }
 
-void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema) {
+void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema, bool& refresh) {
     float scroll = ImGui::GetScrollY();
     ImDrawList* draw = ImGui::GetWindowDrawList();
     bool isDark = ((task->color.Value.x + task->color.Value.y + task->color.Value.z) / 3) < 0.33;
@@ -427,7 +427,8 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
     draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 25 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 10 - scroll), (hovered ? ImGui::GetColorU32(accent.Value) : ImGui::GetColorU32(main_color.Value)), 1.5);
 
     if(pushedd) {
-        //update server
+        tasker::drop_category(task->name);
+        refresh = true;
     }
 
     if(!task->collapsed) draw->AddTriangleFilled(ImVec2(55, y + 15 - scroll), ImVec2(62.5, y + 25 - scroll), ImVec2(70, y + 15 - scroll), main_color);

@@ -204,4 +204,22 @@ namespace tasker {
 
         return return_code::True;
     }
+
+    return_code drop_category(const std::string& category) {
+        if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
+        sql::Statement* stmt;
+
+        try {
+            stmt = connection->createStatement();
+            stmt->executeUpdate("drop table task_" + category);
+            stmt->executeUpdate("delete from tasks_meta where name=\"" + category + '"');
+            delete stmt;
+        } catch(sql::SQLException& e) {
+            std::cout << "Error deleting category!" << std::endl << e.what() << std::endl;
+            delete stmt;
+            return return_code::False;
+        }
+
+        return return_code::True;
+    }
 }
