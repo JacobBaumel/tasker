@@ -407,6 +407,7 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
     bool isDark = ((task->color.Value.x + task->color.Value.y + task->color.Value.z) / 3) < 0.33;
 
     ImColor main_color = isDark ? ImColor(ImVec4(1, 1, 1, 1)) : ImColor(ImVec4(0, 0, 0, 1));
+    ImColor accent = isDark ? ImColor(ImVec4(0, 0, 0, 1)) : ImColor(ImVec4(1, 1, 1, 1));
     ImGui::PushStyleColor(ImGuiCol_FrameBg, alphaShift(task->color.Value, 0.25));
     ImGui::PushStyleColor(ImGuiCol_Text, main_color.Value);
     if(isDark) draw->AddRectFilled(ImVec2(48, y - 2), ImVec2(ImGui::GetWindowSize().x - 48, y + 37), ImColor(ImVec4(1, 1, 1, 1)), 5);
@@ -415,6 +416,19 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
     ImGui::TextUnformatted(task->display_name);
     ImGui::PopStyleColor();
     ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+
+    ImGui::PushID(latestId++);
+    ImGui::SetCursorPos(ImVec2(ImGui::GetWindowSize().x - 75, y + 10 - scroll));
+    bool pushedd = ImGui::InvisibleButton("##delete", ImVec2(15, 15));
+    bool hovered = ImGui::IsItemHovered();
+    ImGui::PopID();
+
+    draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 10 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 25 - scroll), (hovered ? ImGui::GetColorU32(accent.Value) : ImGui::GetColorU32(main_color.Value)), 1.5);
+    draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 25 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 10 - scroll), (hovered ? ImGui::GetColorU32(accent.Value) : ImGui::GetColorU32(main_color.Value)), 1.5);
+
+    if(pushedd) {
+        //update server
+    }
 
     if(!task->collapsed) draw->AddTriangleFilled(ImVec2(55, y + 15 - scroll), ImVec2(62.5, y + 25 - scroll), ImVec2(70, y + 15 - scroll), main_color);
     else draw->AddTriangleFilled(ImVec2(60, y + 10 - scroll), ImVec2(60, y + 25 - scroll), ImVec2(67.5, y + 17.5 - scroll), main_color);
