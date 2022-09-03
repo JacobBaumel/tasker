@@ -97,5 +97,6 @@ namespace tasker {
     return_code create_category(const std::string& name, float* color);
     return_code drop_category(const std::string& category);
     return_code remove_status(const status* s, workspace& workspace);
+    return_code create_status(const std::string& name, const int& r, const int& g, const int& b);
 }
 #endif

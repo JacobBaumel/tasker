@@ -352,7 +352,7 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
 
 void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema, bool& refresh);
 void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_size, bool& refresh);
-void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::status*>& stati, int& latestId, tasker::workspace& workspace);
+void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::status*>& stati, int& latestId, tasker::workspace& workspace, float* colors);
 
 void display_workspace(tasker::json_database& database, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config, time_t& timer) {
     if(refresh) {
@@ -372,13 +372,15 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
 
         ImGui::SetCursorPos(ImVec2(50, 50));
         if(ImGui::Button("New Category", ImVec2(150, 25)) || config.create_cat) {
+            if(!config.create_cat) std::fill(config.new_category, config.new_category + 255, '\0');
             config.create_cat = true;
             create_new(config.create_cat, config.new_color, config.new_category, IM_ARRAYSIZE(config.new_category), refresh);
         }
         ImGui::SameLine();
         if(ImGui::Button("Manage Statuses", ImVec2(150, 25)) || config.manage_statuses) {
+            if(!config.manage_statuses) std::fill(config.new_category, config.new_category + 255, '\0');
             config.manage_statuses = true;
-            manage_statuses(config.manage_statuses, refresh, config.stati, latestId, config);
+            manage_statuses(config.manage_statuses, refresh, config.stati, latestId, config, config.new_color);
         }
         ImGui::SameLine();
         if(ImGui::Button("Refresh", ImVec2(100, 25))) {
@@ -516,7 +518,6 @@ void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_s
     if(ImGui::Begin("Create New Category", &create_cat, flags)) {
         
         ImGui::ColorPicker3("New Color", colors);
-        bool isColorPicking = ImGui::IsItemActive();
         ImGui::TextUnformatted("Category name: ");
         ImGui::SameLine();
         ImGui::InputText("##new_cat_name", buffer, buff_size);
@@ -538,8 +539,8 @@ void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_s
     }
 }
 
-void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::status*>& stati, int& latestId, tasker::workspace& workspace) {
-    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::status*>& stati, int& latestId, tasker::workspace& workspace, float* colors) {
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
     ImGui::SetNextWindowSize(ImVec2(500, 500));
     ImGuiViewport* viewport = ImGui::GetMainViewport();
     ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + (viewport->Size.x / 2) - 250, viewport->Pos.y + (viewport->Size.y / 2) - 250));
@@ -547,6 +548,7 @@ void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::s
     if(ImGui::Begin("Mange Statuses", &manage_statuses, flags)) {
         for(tasker::status* s : stati) {
             if(std::string(s->name) == "None") continue;
+            ImGui::SetCursorPosX(45);
             ImGui::PushStyleColor(ImGuiCol_Button, s->color.Value);
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, s->color.Value);
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, s->color.Value);
@@ -555,12 +557,27 @@ void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::s
             ImGui::PopStyleColor();
 
             ImGui::SameLine();
+            ImGui::SetCursorPosX(255);
             if(ImGui::Button(std::string("Remove##").append(std::to_string(latestId++)).c_str(), ImVec2(200, 50))) {
                 tasker::remove_status(s, workspace);
                 refresh = true;
                 manage_statuses = false;
             }
             ImGui::PopStyleColor();
+        }
+
+        ImGui::NewLine();
+        ImGui::ColorPicker3("New Color", colors);
+
+        ImGui::TextUnformatted("Status Name: ");
+        ImGui::PushID(latestId++);
+        ImGui::InputText("##", workspace.new_category, IM_ARRAYSIZE(workspace.new_category));
+        ImGui::PopID();
+
+        ImGui::SetCursorPosX(45);
+        if(ImGui::Button("Create Status", ImVec2(410, 50))) {
+            tasker::create_status(workspace.new_category, colors[0] * 255, colors[1]* 255, colors[2] * 255);
+            refresh = true;
         }
         manage_statuses = manage_statuses && ImGui::IsWindowFocused();
         ImGui::End();

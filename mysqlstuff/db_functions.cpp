@@ -60,7 +60,7 @@ namespace tasker {
     */
     return_code does_workspace_exist(const std::string& name) {
         if(has_open_connection() != tasker::return_code::True) return tasker::return_code::Error;
-        sql::Statement* stmt;
+        sql::Statement* stmt = nullptr;
         sql::ResultSet* result;
         try {
             stmt = connection->createStatement();
@@ -157,7 +157,7 @@ namespace tasker {
 
     return_code update_task(const std::string& table, task* t) {
         if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
-        sql::PreparedStatement* stmt;
+        sql::PreparedStatement* stmt = nullptr;
 
         try {
             stmt = connection->prepareStatement("update task_" + table + " set task=?, status=?, people=?, date=?, pos=? where idd=?");
@@ -180,7 +180,7 @@ namespace tasker {
 
     return_code create_category(const std::string& _name, float* colors) {
         if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
-        sql::PreparedStatement* stmt;
+        sql::PreparedStatement* stmt = nullptr;
         std::string name = _name;
         for(int i = 0; i < name.length(); i++) if(isspace(name[i])) name[i] = '_';
 
@@ -207,7 +207,7 @@ namespace tasker {
 
     return_code drop_category(const std::string& category) {
         if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
-        sql::Statement* stmt;
+        sql::Statement* stmt = nullptr;
 
         try {
             stmt = connection->createStatement();
@@ -225,7 +225,7 @@ namespace tasker {
 
     return_code remove_status(const status* s, workspace& workspace) {
         if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
-        sql::Statement* stmt;
+        sql::Statement* stmt = nullptr;
 
         try {
             stmt = connection->createStatement();
@@ -245,6 +245,26 @@ namespace tasker {
             return return_code::Error;
         }
 
+        return return_code::True;
+    }
+
+    return_code create_status(const std::string& name, const int& r, const int& g, const int& b) {
+        if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
+        sql::PreparedStatement* stmt = nullptr;
+
+        try {
+            stmt = connection->prepareStatement("insert into stati(name, r, g, b) values (?, ?, ?, ?)");
+            stmt->setString(1, name);
+            stmt->setInt(2, r);
+            stmt->setInt(3, g);
+            stmt->setInt(4, b);
+            stmt->executeUpdate();
+            delete stmt;
+        } catch(sql::SQLException& e) {
+            std::cout << "Error while creating status!" << std::endl << e.what() << std::endl;
+            delete stmt;
+            return return_code::Error;
+        }
         return return_code::True;
     }
 }
