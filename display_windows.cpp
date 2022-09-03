@@ -352,6 +352,7 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
 
 void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema, bool& refresh);
 void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_size, bool& refresh);
+void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::status*>& stati, int& latestId, tasker::workspace& workspace);
 
 void display_workspace(tasker::json_database& database, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config, time_t& timer) {
     if(refresh) {
@@ -375,7 +376,10 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
             create_new(config.create_cat, config.new_color, config.new_category, IM_ARRAYSIZE(config.new_category), refresh);
         }
         ImGui::SameLine();
-        ImGui::Button("Manage Statuses", ImVec2(150, 25));
+        if(ImGui::Button("Manage Statuses", ImVec2(150, 25)) || config.manage_statuses) {
+            config.manage_statuses = true;
+            manage_statuses(config.manage_statuses, refresh, config.stati, latestId, config);
+        }
         ImGui::SameLine();
         if(ImGui::Button("Refresh", ImVec2(100, 25))) {
             refresh = true;
@@ -530,6 +534,35 @@ void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_s
         }
 
         create_cat = create_cat && ImGui::IsWindowFocused();
+        ImGui::End();
+    }
+}
+
+void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::status*>& stati, int& latestId, tasker::workspace& workspace) {
+    ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+    ImGui::SetNextWindowSize(ImVec2(500, 500));
+    ImGuiViewport* viewport = ImGui::GetMainViewport();
+    ImGui::SetNextWindowPos(ImVec2(viewport->Pos.x + (viewport->Size.x / 2) - 250, viewport->Pos.y + (viewport->Size.y / 2) - 250));
+
+    if(ImGui::Begin("Mange Statuses", &manage_statuses, flags)) {
+        for(tasker::status* s : stati) {
+            if(std::string(s->name) == "None") continue;
+            ImGui::PushStyleColor(ImGuiCol_Button, s->color.Value);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, s->color.Value);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, s->color.Value);
+            ImGui::Button(std::string(s->name).append("##" + std::to_string(1)).c_str(), ImVec2(200, 50));
+            ImGui::PopStyleColor();
+            ImGui::PopStyleColor();
+
+            ImGui::SameLine();
+            if(ImGui::Button(std::string("Remove##").append(std::to_string(latestId++)).c_str(), ImVec2(200, 50))) {
+                tasker::remove_status(s, workspace);
+                refresh = true;
+                manage_statuses = false;
+            }
+            ImGui::PopStyleColor();
+        }
+        manage_statuses = manage_statuses && ImGui::IsWindowFocused();
         ImGui::End();
     }
 }

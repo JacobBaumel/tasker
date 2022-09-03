@@ -217,7 +217,32 @@ namespace tasker {
         } catch(sql::SQLException& e) {
             std::cout << "Error deleting category!" << std::endl << e.what() << std::endl;
             delete stmt;
-            return return_code::False;
+            return return_code::Error;
+        }
+
+        return return_code::True;
+    }
+
+    return_code remove_status(const status* s, workspace& workspace) {
+        if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
+        sql::Statement* stmt;
+
+        try {
+            stmt = connection->createStatement();
+            stmt->executeUpdate("delete from stati where name=\"" + std::string(s->name) + "\"");
+            for(supertask* tasks : workspace.tasks) {
+                for(task* t : tasks->tasks) {
+                    if(t->statuss == s) {
+                        t->statuss = workspace.get_status("None");
+                        update_task(tasks->name, t);
+                    }
+                }
+            }
+            delete stmt;
+        } catch(sql::SQLException& e) {
+            std::cout << "Error removing status!" << std::endl << e.what() << std::endl;
+            delete stmt;
+            return return_code::Error;
         }
 
         return return_code::True;

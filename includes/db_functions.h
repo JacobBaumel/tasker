@@ -69,6 +69,7 @@ namespace tasker {
         char new_category[256] = "";
         float new_color[3] = {0, 0, 0};
         bool create_cat = false;
+        bool manage_statuses = false;
 
         workspace(const std::string& _name) {
             std::copy(&_name[0], &_name[_name.length()], name);
@@ -95,5 +96,6 @@ namespace tasker {
     return_code update_task(const std::string& table, task* t);
     return_code create_category(const std::string& name, float* color);
     return_code drop_category(const std::string& category);
+    return_code remove_status(const status* s, workspace& workspace);
 }
 #endif
