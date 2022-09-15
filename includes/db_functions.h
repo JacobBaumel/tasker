@@ -50,6 +50,7 @@ namespace tasker {
 
     struct supertask {
         std::vector<task*> tasks;
+        task* newTask;
         ImColor color;
         char name[256] = "";
         char display_name[256] = "";
@@ -59,6 +60,7 @@ namespace tasker {
             std::copy(&_name[0], &_name[_name.length()], name);
             std::copy(&_display_name[0], &_display_name[_display_name.length()], display_name);
             color = _color;
+            newTask = new task(nullptr, "\0", "\0", "\0", 0, 0);
         }
     };
 
@@ -98,5 +100,7 @@ namespace tasker {
     return_code drop_category(const std::string& category);
     return_code remove_status(const status* s, workspace& workspace);
     return_code create_status(const std::string& name, const int& r, const int& g, const int& b);
+    return_code delete_task(const int& id, const std::string& super);
+    return_code create_task(const task* task, const std::string& table);
 }
 #endif

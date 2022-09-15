@@ -7,6 +7,7 @@
 #include "db_functions.h"
 #include "jsonstuff.h"
 #include <map>
+#include <memory>
 
 namespace tasker {
     sql::Connection* connection = NULL;
@@ -265,6 +266,45 @@ namespace tasker {
             delete stmt;
             return return_code::Error;
         }
+        return return_code::True;
+    }
+
+    return_code delete_task(const int& id, const std::string& super) {
+        if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
+        sql::PreparedStatement* stmt = nullptr;
+
+        try {
+            stmt = connection->prepareStatement("delete from task_" + super + " where idd=?");
+            stmt->setInt(1, id);
+            stmt->executeUpdate();
+        } catch(sql::SQLException& e) {
+            std::cout << "Error while deleting task " << id << std::endl << e.what() << std::endl;
+            delete stmt;
+            return return_code::Error;
+        }
+
+        return return_code::True;
+    }
+
+    return_code create_task(const task* task, const std::string& table) {
+        if(has_open_connection() != tasker::return_code::True || connection->getSchema() == "") return tasker::return_code::Error;
+        sql::PreparedStatement* stmt = nullptr;
+
+        try {
+            stmt = connection->prepareStatement("insert into task_" + table + "(task, status, people, date, pos) values(?, ?, ?, ?, ?)");
+            stmt->setString(1, task->taskk);
+            stmt->setString(2, task->statuss->name);
+            stmt->setString(3, task->people);
+            stmt->setString(4, task->date);
+            stmt->setInt(5, task->pos);
+            stmt->executeUpdate();
+            delete stmt;
+        } catch(sql::SQLException& e) {
+            std::cout << "Error while creating task!" << std::endl << e.what() << std::endl;
+            delete stmt; 
+            return return_code::Error;
+        }
+
         return return_code::True;
     }
 }

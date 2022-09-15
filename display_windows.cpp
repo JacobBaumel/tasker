@@ -452,12 +452,12 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
             bool changed = false;
 
             ImGui::SetCursorPos(ImVec2(60, y + 3));
-            ImGui::PushItemWidth((ImGui::GetWindowSize().x - 100) / 2);
+            ImGui::PushItemWidth((ImGui::GetWindowSize().x - 120) / 2);
             changed = changed || ImGui::InputText(std::string("##task_input_").append(std::to_string(latestId++)).c_str(), &t->taskk[0], IM_ARRAYSIZE(t->taskk), ImGuiInputTextFlags_EnterReturnsTrue);
             changed = changed || ImGui::IsItemActive();
             ImGui::PopItemWidth();
 
-            ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 100) / 2) + 70), y + 3));
+            ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 125) / 2) + 70), y + 3));
             ImGui::PushItemWidth((ImGui::GetWindowSize().x - 100) / 3);
             bool isTyping = ImGui::InputText(std::string("##task_people_").append(std::to_string(latestId++)).c_str(), &t->people[0], IM_ARRAYSIZE(t->people), ImGuiInputTextFlags_EnterReturnsTrue);
             ImGui::PopItemWidth();
@@ -466,7 +466,7 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
             ImGui::PushStyleColor(ImGuiCol_FrameBg, t->statuss->color.Value);
             int color_shift = 1.5;
             ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(t->statuss->color.Value.x * color_shift, t->statuss->color.Value.y * color_shift, t->statuss->color.Value.z * color_shift, 0.8));
-            ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 100) * (5.0 / 6.0)) + 80), y + 3));
+            ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 120) * (5.0 / 6.0)) + 80), y + 3));
             ImGui::PushItemWidth(((ImGui::GetWindowSize().x - 100) / 6) - 50);
             bool edited = false;
             if(ImGui::BeginCombo(std::string("##status_selector_").append(std::to_string(latestId++)).c_str(), &t->statuss->name[0], ImGuiComboFlags_NoArrowButton)) {
@@ -489,6 +489,18 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
 
                 ImGui::EndCombo();
             }
+
+            ImGui::SetCursorPos(ImVec2(ImGui::GetWindowSize().x - 75, y + 10 - scroll));
+            bool toDelete = ImGui::InvisibleButton(std::string("##").append(std::to_string(latestId++)).c_str(), ImVec2(15, 15)); 
+            bool toDeleteHovered = ImGui::IsItemHovered();
+            draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 10 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 25 - scroll), (toDeleteHovered ? ImGui::GetColorU32(ImVec4(1, 1, 1, 1)): ImGui::GetColorU32(ImVec4(0, 0, 0, 1))), 1.5);
+            draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 25 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 10 - scroll), (toDeleteHovered ? ImGui::GetColorU32(ImVec4(1, 1, 1, 1)): ImGui::GetColorU32(ImVec4(0, 0, 0, 1))), 1.5);
+
+            if(toDelete) {
+                tasker::delete_task(t->id, task->name);
+                refresh = true;
+            }
+
             changed = changed || edited;
 
             if(edited) ImGui::SetWindowFocus(schema); // This schema is so imgui can focus on the window and close the combo, not for updating mysql
@@ -501,6 +513,63 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
             
             y += 40;
         }
+
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
+        ImGui::PushStyleColor(ImGuiCol_Button, task->color.Value);
+        ImGui::PushStyleColor(ImGuiCol_ButtonHovered, alphaShift(main_color.Value, 0.1));
+        draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(ImGui::GetWindowSize().x - 50, y + 35 - ImGui::GetScrollY()), ImColor(ImVec4(0.25, 0.25, 0.25, 1)), 5);
+        // ImGui::SetCursorPos(ImVec2(60, y + 5));
+        // ImGui::Button(std::string("Add##").append(std::to_string(latestId++)).c_str(), ImVec2(50, 25));
+
+        ImGui::SetCursorPos(ImVec2(60, y + 3));
+        ImGui::PushItemWidth((ImGui::GetWindowSize().x - 120) / 2);
+        ImGui::InputText(std::string("##task_input_").append(std::to_string(latestId++)).c_str(), &task->newTask->taskk[0], IM_ARRAYSIZE(task->newTask->taskk), ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::IsItemActive();
+        ImGui::PopItemWidth();
+
+        ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 125) / 2) + 70), y + 3));
+        ImGui::PushItemWidth((ImGui::GetWindowSize().x - 100) / 3);
+        ImGui::InputText(std::string("##task_people_").append(std::to_string(latestId++)).c_str(), &task->newTask->people[0], IM_ARRAYSIZE(task->newTask->people), ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::PopItemWidth();
+
+        ImVec4 taskColor = (task->newTask->statuss == nullptr ? ImVec4(0, 0, 0, 1) : task->newTask->statuss->color.Value);
+        ImGui::PushStyleColor(ImGuiCol_FrameBg, taskColor);
+        int color_shift = 1.5;
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(taskColor.x * color_shift, taskColor.y * color_shift, taskColor.z * color_shift, 0.8));
+        ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 120) * (5.0 / 6.0)) + 80), y + 3));
+        ImGui::PushItemWidth(((ImGui::GetWindowSize().x - 100) / 6) - 50);
+        bool edited = false;
+        if(ImGui::BeginCombo(std::string("##status_selector_").append(std::to_string(latestId++)).c_str(), (task->newTask->statuss == nullptr ? "None" : &task->newTask->statuss->name[0]), ImGuiComboFlags_NoArrowButton)) {
+            bool first = true;
+            for(int i = 0; i < stati.size(); i++) {
+                bool selected = (task->newTask->statuss == nullptr ? "None" : task->newTask->statuss->name) == stati[i]->name;
+                ImGui::PushStyleColor(ImGuiCol_Button, alphaShift(stati.at(i)->color.Value, (selected ? 0.9 : 0.8)));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, alphaShift(stati.at(i)->color.Value, 0.95));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, alphaShift(stati.at(i)->color.Value, 1));
+                if(ImGui::Button(&stati.at(i)->name[0], ImVec2(ImGui::GetItemRectMax().x - ImGui::GetItemRectMin().x - (first ? 10 : 0), 0))) {
+                    task->newTask->statuss = stati.at(i);
+                    edited = true;
+                }
+                if(first) first = false;
+                ImGui::PopStyleColor();
+                ImGui::PopStyleColor();
+                ImGui::PopStyleColor();
+                if(selected) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        ImGui::SetCursorPos(ImVec2(ImGui::GetWindowSize().x - 82, y + 3));
+        bool selected = ImGui::InvisibleButton(std::string("##").append(std::to_string(latestId++)).c_str(), ImVec2(25, 25));
+        bool hovered = ImGui::IsItemHovered();
+        draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 22 - scroll), ImVec2(ImGui::GetWindowSize().x - 70, y + 27 - scroll), ImGui::GetColorU32(!hovered ? ImVec4(0, 0, 0, 1) : ImVec4(1, 1, 1, 1)), 2.0f);
+        draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 70, y + 27 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 5 - scroll), ImGui::GetColorU32(!hovered ? ImVec4(0, 0, 0, 1) : ImVec4(1, 1, 1, 1)), 2.0f);
+
+        if(selected) {
+            tasker::create_task(task->newTask, task->name);
+            refresh = true;
+        }
+        for(int i = 0; i < 5; i++) ImGui::PopStyleColor();
     }
     if(pushed) task->collapsed = !task->collapsed;
 
