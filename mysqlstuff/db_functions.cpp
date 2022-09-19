@@ -88,8 +88,9 @@ namespace tasker {
             connection->setSchema(name);
             delete stmt;
             stmt = connection->createStatement();
-            stmt->executeUpdate("create table task_meta (name varchar(64), r int, g int, b int)");
+            stmt->executeUpdate("create table tasks_meta (name varchar(64), r int, g int, b int)");
             stmt->executeUpdate("create table stati (name varchar(64), r int, g int, b int)");
+            stmt->executeUpdate("insert into stati(name, r, g, b) values (\"None\", 0, 0, 0)");
             delete stmt;
         } catch(sql::SQLException& e) {
             std::cerr << "Error creating workspace!" << std::endl << e.what() << std::endl;

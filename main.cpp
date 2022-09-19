@@ -47,9 +47,9 @@ int main() {
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
-    tasker::json_database connection = tasker::json_database{tasker::json_sql_connection{"129.159.35.219", 3306, "tasker", "W11LuvR0b07ics!"}, "testSpace"};
+    tasker::json_database connection;
     bool has_picked_workspace = false;
-    tasker::DisplayWindowStage stage = tasker::DisplayWindowStage::workspace_main;
+    tasker::DisplayWindowStage stage = tasker::DisplayWindowStage::pick_workspace;
     tasker::DisplayWindowStage previous_stage = stage;
 
     ImFont* ubuntu = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
