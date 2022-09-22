@@ -1,3 +1,4 @@
+// All necessary includes for basic functions
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -10,69 +11,97 @@
 #include <fstream>
 #include "Colors.h"
 
+// These functions allow post and pre-rendering stuff to be done in multiple places, without needing a copy-paste
 void pre_rendering();
 void post_rendering(GLFWwindow* window);
 
+// Global variable, used to determin when a full refresh is needed from server
 bool refresh = true;
+
+// Used to determine rising edge of refresh
 bool prev_refresh = refresh;
 
 int main() {
 
+    // Checks if config file exists, and if not, create it
     {if(!std::ifstream("config.json").good()) {std::ofstream("config.json") << "{\"connections\": []}";}}
 
-    //GLFW and OpenGL setup
+    //GLFW setup
     if(!glfwInit()) {
         std::cerr << "Could not initialize OpenGL!" << std::endl;
         return -1;
     }
     
-
+    // Defining opengl version 3.0
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
     glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
 
+    // Creating window, values given for typical 1080p screen
     GLFWwindow* window = glfwCreateWindow(1920, 1080, "Tasker", nullptr, nullptr);
 
     if(!window) {
         std::cerr << "Could not create a window!" << std::endl;
         return -1;
     }
+
+    // More imgui + opengl + glfw initialization
     glfwMakeContextCurrent(window);
     glfwSwapInterval(1);
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
+
+    // ImGui IO for detecting keyboard events
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+    // Dark theme the best
     ImGui::StyleColorsDark();
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init("#version 130");
 
+    // Necessary variables for whole progam runtime.
     tasker::json_database connection;
     bool has_picked_workspace = false;
+
+    // Enum for stage of program
     tasker::DisplayWindowStage stage = tasker::DisplayWindowStage::pick_workspace;
     tasker::DisplayWindowStage previous_stage = stage;
 
+    // Better font than the default
     ImFont* ubuntu = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
     
     //Main window loop
     while(!glfwWindowShouldClose(window)) {
+        //To determin what set of stuff to draw
         switch(stage) {
             case tasker::DisplayWindowStage::pick_workspace:
                 {
+                //These variables are outside of the secondary loop to persist between drawing loops, but to also be destroyed once the app is out of the picking stage
                 tasker::database_array connections{};
                 bool add_connection = false;
                 tasker::connection_add_statics statics{};
                 while(!glfwWindowShouldClose(window) && stage == tasker::DisplayWindowStage::pick_workspace) {
+                    // Call pre and post rendering stuff inside loop
                     pre_rendering();
+
+                    // latestId is reset each loop cycle, hence being redeclared in the loop
                     int latestId = 0;
+
+                    // Master function responsible for drawing the whole picking screen
                     display_worskapce_selection(connection, stage, latestId, refresh, connections, add_connection, statics);
                     post_rendering(window);
                 }
                 break;
                 }
             case tasker::DisplayWindowStage::workspace_main:
+                // Set refresh to true in order to get data from server
                 refresh = true;
+
+                // Persistent workspace during workspace stage
                 tasker::workspace config("");
+
+                // Timer for refresh text
                 time_t timer;
                 while(!glfwWindowShouldClose(window) && stage == tasker::DisplayWindowStage::workspace_main) {
                     pre_rendering();
@@ -84,12 +113,14 @@ int main() {
         }
     }
 
+    // Closing of GLFW/Opengl stuff
     glfwDestroyWindow(window);
     glfwTerminate();
     return 0;
 }
 
 void pre_rendering() {
+    // Stuff ImGui needs to begin a rendering frame. No idea what it really does, dont need to know
     prev_refresh = refresh;
 
     glfwPollEvents();
@@ -109,6 +140,7 @@ void pre_rendering() {
 }
 
 void post_rendering(GLFWwindow* window) {
+    // Stuff ImGui needs to end/draw a rendering frame. No idea what it really does, dont need to know
     ImGui::Render();
     int display_w, display_h;
     glfwGetFramebufferSize(window, &display_w, &display_h);
@@ -119,74 +151,3 @@ void post_rendering(GLFWwindow* window) {
     glfwSwapBuffers(window);
     if(refresh && prev_refresh) refresh = false;
 }
-
-/*
-
-MySQL info scheme:
-
-Entire database represents a work environment
-
-Table Metadata in string string key-value pairs:
-Organization name
-workspace name
-workspace description
-table names and color to be displayed as
-
-Table People
-stores the person with an:
-id
-name
-role
-
-Table Stati:
-Status name
-color (hex)
-description
-
-Task tables:
-each overall task has its own table, which stores subtasks with:
-name
-person/people to complete
-due date
-status
-comments
-subtasks have an appearence order
-
-Table Archive:
-has each archived task and what supertask they originally belonged to
-
-General functionality:
-Display all supertasks on main page
-each supertask can have subtasks, of which have name, status, description, comments, people, and due date
-statuses are colored boxes, and can be changed and named in the menu
-supertasks are colored
-all colors are in hex form, and a color picker tool will be available
-can add people and dates to tasks
-supertasks are collapsable
-the top will show organization, workspace name, along with description
-ability to select from multiple workspaces (databases) within one mysql server
-ability to use date picker to pick due dates
-
-Customizability options for single user only (persistent):
-Use custom font
-Change background color
-supertasks start alphabetical
-subtasks are as ordered in 
-
-Needed mysql functions:
-show all available databases for workspace options
-create new workspace
-initialize workspace (metadata) and tables people and stati
-verify workspace integrity (all needed tables are present)
-create/modify/delete status
-create/modify/delete people
-create/modify/delete supertask
-create/modify/delete subtasks
-get all supertask tables
-get specific supertask table
-refresh all available information
-refresh only tables
-refresh specific table
-change names of supertasks
-change appearence order of subtasks
-*/

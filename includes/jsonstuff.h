@@ -13,9 +13,7 @@ namespace tasker {
         std::string username;
         std::string password;
 
-        bool operator==(const json_sql_connection& other) {
-            return ip == other.ip && port == other.port && username == other.username && password == other.password;
-        }
+        bool operator==(const json_sql_connection& other);
     };
 
     struct json_database {

@@ -23,10 +23,7 @@ namespace tasker {
         char name[256] = "";
         ImColor color;
 
-        status(const std::string& _name, const int& r, const int& g, const int& b) {
-            std::copy(&_name[0], &_name[_name.length()], name);
-            color = ImColor(r, g, b, 150);
-        }
+        status(const std::string& _name, const int& r, const int& g, const int& b);
     };
 
     struct task {
@@ -38,14 +35,7 @@ namespace tasker {
         int id;
         bool wasSelected = false;
 
-        task(status* _statuss, const std::string& _taskk, const std::string& _date, const std::string& _people, const int& _pos, const int& _id) {
-            statuss = _statuss;
-            pos = _pos;
-            id = _id;
-            std::copy(&_taskk[0], &_taskk[_taskk.length()], taskk);
-            std::copy(&_date[0], &_date[_date.length()], date);
-            std::copy(&_people[0], &_people[_people.length()], people);
-        }
+        task(status* _statuss, const std::string& _taskk, const std::string& _date, const std::string& _people, const int& _pos, const int& _id);
     };
 
     struct supertask {
@@ -56,12 +46,7 @@ namespace tasker {
         char display_name[256] = "";
         bool collapsed = false;
 
-        supertask(const std::string& _name, const std::string& _display_name, const ImColor& _color) {
-            std::copy(&_name[0], &_name[_name.length()], name);
-            std::copy(&_display_name[0], &_display_name[_display_name.length()], display_name);
-            color = _color;
-            newTask = new task(nullptr, "\0", "\0", "\0", 0, 0);
-        }
+        supertask(const std::string& _name, const std::string& _display_name, const ImColor& _color);
     };
 
     struct workspace {
@@ -73,20 +58,11 @@ namespace tasker {
         bool create_cat = false;
         bool manage_statuses = false;
 
-        workspace(const std::string& _name) {
-            std::copy(&_name[0], &_name[_name.length()], name);
-        }
+        workspace(const std::string& _name);
 
-        ~workspace() {
-            for(status* s : stati) delete s;
-            for(supertask* t : tasks) delete t;
-        }
+        ~workspace();
 
-        status* get_status(const std::string& name) {
-            status* toreturn;
-            for(status* s : stati) if(std::string(s->name) == name) return s;
-            return nullptr;
-        }
+        status* get_status(const std::string& name);
     };
 
     return_code has_open_connection();

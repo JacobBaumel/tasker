@@ -4,6 +4,7 @@
 
 namespace tasker {
     namespace Colors {
+        // Different constant color options for rendering
         static constexpr ImVec4 green = ImVec4(0, 0.839, 0, 1); 
         static constexpr ImVec4 text = ImVec4(0.859, 0.839, 0.82, 1);
         static constexpr ImVec4 error_text = ImVec4(1, 0, 0, 1); 
