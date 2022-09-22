@@ -43,33 +43,40 @@ ifeq ($(MODE), PRODUCTION)
 EXTRA_FLAGS += -O3 -DNDEBUG -s
 endif
 
+.PHONY: all
 #Second expansion necessary to use compile objects for targets, and corresponding sources for prereqs. Probably not the best way to go about it, but it works
 .SECONDEXPANSION:
-%.o: $$(notdir $$(basename $$@)).cpp
+%.o: $$(notdir $$(basename $$@)).cpp dir
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-%.o: json/$$(notdir $$(basename $$@)).cpp
+%.o: json/$$(notdir $$(basename $$@)).cpp dir
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-%.o: mysqlstuff/$$(notdir $$(basename $$@)).cpp
+%.o: mysqlstuff/$$(notdir $$(basename $$@)).cpp dir
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-%.o: $(IMGUI_DIR)/$$(notdir $$(basename $$@)).cpp
+%.o: $(IMGUI_DIR)/$$(notdir $$(basename $$@)).cpp dir
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-%.o: $(IMGUI_DIR)/backends/$$(notdir $$(basename $$@)).cpp
+%.o: $(IMGUI_DIR)/backends/$$(notdir $$(basename $$@)).cpp dir
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-%.o: $(JSON11_DIR)/$$(notdir $$(basename $$@)).cpp
+%.o: $(JSON11_DIR)/$$(notdir $$(basename $$@)).cpp dir
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-all: $(EXE)
+all: $(EXE) dir
 	@echo Build Complete! && ./$(EXE)
 
-$(EXE): $(COMPILE_OBJECTS)
+$(EXE): $(COMPILE_OBJECTS) dir
 	$(CXX) $(COMPILE_OBJECTS) $(LIBS) $(EXTRA_FLAGS) -o $(EXE)
 
 
 #Deletes all compiled objects, and target executable
 clean:
 	-rm $(BUILD_DIR)/* -f ; rm $(EXE) -f
+
+fullclean: clean
+	rm -r $(BUILD_DIR)
+
+dir:
+	@if [ ! -d "$(BUILD_DIR)" ]; then mkdir $(BUILD_DIR); fi
