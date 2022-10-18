@@ -16,7 +16,7 @@ JSON11_DIR = ../json11
 CXX = g++
 
 #List of source files and directories relative to project root
-SOURCES = main.cpp json/jsonstuff.cpp display_windows.cpp mysqlstuff/db_functions.cpp
+SOURCES = main.cpp common/jsonstuff.cpp display_windows.cpp common/db_functions.cpp
 SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
 SOURCES += $(JSON11_DIR)/json11.cpp
@@ -49,10 +49,7 @@ endif
 %.o: $$(notdir $$(basename $$@)).cpp dir
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-%.o: json/$$(notdir $$(basename $$@)).cpp dir
-	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
-
-%.o: mysqlstuff/$$(notdir $$(basename $$@)).cpp dir
+%.o: common/$$(notdir $$(basename $$@)).cpp dir
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
 %.o: $(IMGUI_DIR)/$$(notdir $$(basename $$@)).cpp dir
@@ -75,8 +72,9 @@ $(EXE): $(COMPILE_OBJECTS) dir
 clean:
 	-rm $(BUILD_DIR)/* -f ; rm $(EXE) -f
 
+# config.json is a file used by tasker during runtime. Clean this too
 fullclean: clean
-	rm -r $(BUILD_DIR)
+	rm -r $(BUILD_DIR) && rm config.json
 
 dir:
 	@if [ ! -d "$(BUILD_DIR)" ]; then mkdir $(BUILD_DIR); fi
