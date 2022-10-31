@@ -1,15 +1,24 @@
 // All necessary includes for basic functions
-#include "imgui.h"
-#include "imgui_impl_glfw.h"
-#include "imgui_impl_opengl3.h"
+// STD includes
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include <cppconn/connection.h>
 #include <cppconn/driver.h>
-#include "includes/jsonstuff.h"
-#include "includes/display_windows.h"
 #include <fstream>
+#include <mutex>
+#include <queue>
+#include <thread>
+
+// Tasker includes
 #include "Colors.h"
+#include "parsing/jsonstuff.h"
+#include "rendering/display_windows.h"
+#include "servering/server_queries.h"
+
+// ImGui includes
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_opengl3.h"
 
 // These functions allow post and pre-rendering stuff to be done in multiple places, without needing a copy-paste
 void pre_rendering();
@@ -21,7 +30,15 @@ bool refresh = true;
 // Used to determine rising edge of refresh
 bool prev_refresh = refresh;
 
+std::queue<tasker::ServerRequest*>* actionQueue;
+std::mutex queueLock;
+
+
 int main() {
+
+    // Start thread and initialize variables for server queryer thread
+    actionQueue = new std::queue<tasker::ServerRequest*>();
+    std::thread(tasker::serverRequestDispatcher);
 
     // Checks if config file exists, and if not, create it
     {if(!std::ifstream("config.json").good()) {std::ofstream("config.json") << "{\"connections\": []}";}}
@@ -106,6 +123,7 @@ int main() {
                 while(!glfwWindowShouldClose(window) && stage == tasker::DisplayWindowStage::workspace_main) {
                     pre_rendering();
                     int latestId = 0;
+                    
                     display_workspace(connection, stage, latestId, refresh, config, timer);
                     post_rendering(window);
                 }
