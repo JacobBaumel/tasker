@@ -2,10 +2,11 @@
 #define SERVER_QUERIES_H
 
 #include "structs.h"
-#include "statement.h"
+#include <cppconn/statement.h>
 #include <string>
 #include <mutex>
 #include <queue>
+
 using std::string;
 
 namespace tasker {
@@ -23,15 +24,24 @@ namespace tasker {
 
         public:
             virtual return_code execute() = 0;
+            virtual ~ServerRequest() = 0;
     };
 
     class CreateWorkspace : public ServerRequest {
+        private:
+            const string name;
+            sql::Connection* connection;
+
         public:
             return_code execute();
             CreateWorkspace(sql::Connection* connection, const string& name);
     };
 
     class GetData : public ServerRequest {
+        private:
+            workspace* space;
+            sql::Connection* connection;
+
         public:
             return_code execute();
             GetData(tasker::workspace* space);
@@ -40,7 +50,7 @@ namespace tasker {
     class UpdateTask : public ServerRequest {
         public:
             return_code execute();
-            UpdateTask(sql::Connection* connection, const string& table, task* t);
+            UpdateTask(sql::Connection* connection, const string& table, tasker::task* t);
     };
 
     class CreateCategory : public ServerRequest {
@@ -79,8 +89,7 @@ namespace tasker {
             CreateTask(sql::Connection* connection, const task* task, const string& table);
     };
 
-    extern std::mutex queueLock;
-    extern std::queue<ServerRequest*>* actionQueue;
+    extern mutex_resource<std::queue<ServerRequest*>> requestQueue;
     
     void queueAction(ServerRequest* request);
     void serverRequestDispatcher();

@@ -9,16 +9,16 @@
 #include <queue>
 #include <thread>
 
-// Tasker includes
-#include "Colors.h"
-#include "parsing/jsonstuff.h"
-#include "rendering/display_windows.h"
-#include "servering/server_queries.h"
-
 // ImGui includes
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
+
+// Tasker includes
+#include "Colors.h"
+#include "jsonstuff.h"
+#include "display_windows.h"
+#include "server_queries.h"
 
 // These functions allow post and pre-rendering stuff to be done in multiple places, without needing a copy-paste
 void pre_rendering();
@@ -32,7 +32,6 @@ bool prev_refresh = refresh;
 
 std::queue<tasker::ServerRequest*>* actionQueue;
 std::mutex queueLock;
-
 
 int main() {
 
@@ -79,14 +78,12 @@ int main() {
 
     // Necessary variables for whole progam runtime.
     tasker::json_database connection;
-    bool has_picked_workspace = false;
 
     // Enum for stage of program
     tasker::DisplayWindowStage stage = tasker::DisplayWindowStage::pick_workspace;
-    tasker::DisplayWindowStage previous_stage = stage;
 
     // Better font than the default
-    ImFont* ubuntu = io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
+    io.Fonts->AddFontFromFileTTF("fonts/Ubuntu-Light.ttf", 20);
     
     //Main window loop
     while(!glfwWindowShouldClose(window)) {
