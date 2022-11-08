@@ -88,12 +88,6 @@ namespace tasker {
             return_code execute();
             CreateTask(sql::Connection* connection, const task* task, const string& table);
     };
-
-    extern mutex_resource<std::queue<ServerRequest*>> requestQueue;
-    
-    void queueAction(ServerRequest* request);
-    void serverRequestDispatcher();
-
 }
 
 #endif

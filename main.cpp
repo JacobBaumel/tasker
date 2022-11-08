@@ -5,9 +5,6 @@
 #include <cppconn/connection.h>
 #include <cppconn/driver.h>
 #include <fstream>
-#include <mutex>
-#include <queue>
-#include <thread>
 
 // ImGui includes
 #include "imgui.h"
@@ -30,15 +27,9 @@ bool refresh = true;
 // Used to determine rising edge of refresh
 bool prev_refresh = refresh;
 
-std::queue<tasker::ServerRequest*>* actionQueue;
-std::mutex queueLock;
-
 int main() {
 
     // Start thread and initialize variables for server queryer thread
-    actionQueue = new std::queue<tasker::ServerRequest*>();
-    std::thread(tasker::serverRequestDispatcher);
-
     // Checks if config file exists, and if not, create it
     {if(!std::ifstream("config.json").good()) {std::ofstream("config.json") << "{\"connections\": []}";}}
 

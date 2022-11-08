@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 #include <mutex>
+#include <queue>
+#include <thread>
 
 using std::string;
 
@@ -19,12 +21,13 @@ namespace tasker {
     template<typename T>
     class mutex_resource {
         private:
-            T* data;
-            std::mutex lock;
+            std::mutex m;
+            T* resource;
             bool locked;
 
         public:
             mutex_resource(T* data);
+            ~mutex_resource();
             T* access();
             void release();
     };
@@ -69,15 +72,20 @@ namespace tasker {
     class workspace {
         private:
             sql::Connection* connection;
-            std::vector<status*> stati;
-            std::vector<supertask*> tasks;
+            std::vector<status*>* stati;
+            std::vector<supertask*>* tasks;
             string name;
-            status* getStatusPointer(const string& name);
+            mutex_resource<bool>* stopThread;
+            std::thread* requestThread;
+
+            typedef void (*func)();
+            mutex_resource<std::queue<func>>* actionQueue;
+
+            void queueQuery(func);
+            void requestDispatcher();
 
         public:
-            static constexpr int STRING_FIELD_LENGTH = MAX_STRING_LENGTH;
-
-            workspace(const string& ip, const int& port, const string& user, const string& password);
+            workspace(sql::Connection* _connection, const string& _name);
             ~workspace();
 
             void fullRefresh();

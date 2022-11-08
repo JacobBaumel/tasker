@@ -1,4 +1,6 @@
 #include <cppconn/connection.h>
+#include <cppconn/driver.h>
+#include <mutex>
 
 // Defines for creating the StringTooLongException error message at compile time
 #define _STR(X) #X
@@ -6,10 +8,36 @@
 
 #include "imgui.h"
 #include "structs.h"
-#include "server_queries.h"
 using std::string;
 
 namespace tasker {
+    template<typename T>
+    mutex_resource<T>::mutex_resource(T* t) {
+        resource = t;
+        locked = false;
+    }
+
+    template<typename T>
+    T* mutex_resource<T>::access() {
+        if(!locked) {
+            m.lock();
+            locked = true;
+        }
+
+        return resource;
+    }
+
+    template<typename T>
+    void mutex_resource<T>::release() {
+        if(locked) m.unlock();
+        locked = false;
+    }
+
+    template<typename T>
+    mutex_resource<T>::~mutex_resource() {
+        delete resource;
+    }
+
     const char* StringTooLongException::what() {
         return "String exceeds maximum acceptable string length (" 
             STR(MAX_STRING_LENGTH) ")";
@@ -70,22 +98,66 @@ namespace tasker {
         delete[] display_name;
     }
 
-    void queueQuery(ServerRequest* request) {
-       requestQueue.access()->push(request);  
-       requestQueue.release();
+    workspace::workspace(sql::Connection* _connection, const string& _name) {
+       connection = _connection;
+       stati = new std::vector<status*>();
+       tasks = new std::vector<supertask*>();
+       name = {_name};
+       stopThread = new mutex_resource<bool>(new bool(false));
+       actionQueue = new mutex_resource<std::queue<func>>(new std::queue<func>);
+       requestThread = new std::thread(&workspace::requestDispatcher, this);
     }
 
-    void serverRequestDispatcher() {
+    workspace::~workspace() {
+        *stopThread->access() = true;
+        stopThread->release();
+        requestThread->join();
+        delete stopThread;
+        delete actionQueue;
+        delete requestThread;
+        for(status* s : *stati) delete s;
+        delete stati;
+        for(supertask* t : *tasks) delete t;
+        delete tasks;
+    }
+
+    void workspace::queueQuery(func f) {
+        actionQueue->access()->push(f);
+        actionQueue->release();
+    }
+
+    void workspace::requestDispatcher() {
         while(true) {
-            ServerRequest* request = nullptr;
-            if(requestQueue.access()->size() != 0) {
-                request = requestQueue.access()->front();
-                requestQueue.access()->pop();
+            func f = nullptr;
+            if(actionQueue->access()->size() != 0) {
+               f = actionQueue->access()->front();
+               actionQueue->access()->pop();
             }
-            requestQueue.release();
-            if(request != nullptr) request->execute();
-            delete request;
+            actionQueue->release();
+            if(f != nullptr) f();
+            if(!*stopThread->access()) {
+                stopThread->release();
+                break;
+            }
         }
     }
+    
+//    void queueQuery(ServerRequest* request) {
+//       requestQueue.access()->push(request);  
+//       requestQueue.release();
+//    }
+//
+//    void serverRequestDispatcher() {
+//        while(true) {
+//            ServerRequest* request = nullptr;
+//            if(requestQueue.access()->size() != 0) {
+//                request = requestQueue.access()->front();
+//                requestQueue.access()->pop();
+//            }
+//            requestQueue.release();
+//            if(request != nullptr) request->execute();
+//            delete request;
+//        }
+//    }
 
 }
