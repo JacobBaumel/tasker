@@ -9,6 +9,7 @@
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <string>
 
 using std::string;
 
@@ -16,6 +17,15 @@ namespace tasker {
     class StringTooLongException : public std::exception {
         public:
             const char* what();
+    };
+
+    class TaskerException : public std::exception {
+        private:
+            const char* text;
+
+        public:
+            const char* what();
+            TaskerException(const char* message);
     };
 
     template<typename T>
@@ -35,7 +45,7 @@ namespace tasker {
     class status {
         friend class workspace;
         private:
-            char* name;
+            string* name;
             ImVec4* color;
 
             status(const std::string& _name, const int r, const int g, const int b);
@@ -47,9 +57,9 @@ namespace tasker {
         friend class supertask;
         private:
             status* statuss;
-            char* taskk;
-            char* date;
-            char* people;
+            string* taskk;
+            string* date;
+            string* people;
             int* pos;
             int* id;
 
@@ -62,8 +72,8 @@ namespace tasker {
         private:
             std::vector<task*>* tasks;
             ImVec4* color;
-            char* name;
-            char* display_name;
+            string* name;
+            string* display_name;
 
             supertask(const std::string& _name, const std::string& _display_name, const ImVec4& _color);
             ~supertask();
@@ -71,25 +81,28 @@ namespace tasker {
 
     class workspace {
         private:
-            sql::Connection* connection;
-            std::vector<status*>* stati;
-            std::vector<supertask*>* tasks;
             string name;
-            mutex_resource<bool>* stopThread;
             std::thread* requestThread;
+            mutex_resource<sql::Connection>* connection;
+            mutex_resource<std::vector<status*>>* stati;
+            mutex_resource<std::vector<supertask*>>* tasks;
+            mutex_resource<bool>* stopThread;
 
-            typedef void (*func)();
-            mutex_resource<std::queue<func>>* actionQueue;
+            mutex_resource<std::queue<string>>* actionQueue;
 
-            void queueQuery(func);
+            void queueQuery(string);
             void requestDispatcher();
+
+            template<typename T>
+            void clearDynamicMemoryVector(std::vector<T>* vector);
 
         public:
             workspace(sql::Connection* _connection, const string& _name);
             ~workspace();
 
             void fullRefresh();
-            void create(const string& name);
+            void pushData();
+            void create();
 
             void createCategory(const string& name, const ImVec4& color);
             void dropCategory(supertask* s);
