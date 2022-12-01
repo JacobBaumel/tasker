@@ -34,9 +34,10 @@ namespace tasker {
             std::mutex m;
             T* resource;
             bool locked;
+            bool deleteResource;
 
         public:
-            mutex_resource(T* data);
+            mutex_resource(T* data, bool deleteResource);
             ~mutex_resource();
             T* access();
             void release();

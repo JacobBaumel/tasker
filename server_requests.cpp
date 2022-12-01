@@ -15,12 +15,24 @@
 using std::string;
 
 namespace tasker {
+    // The following are methods for the mutex_resource class:
+
+    // Constructor:
     template<typename T>
-    mutex_resource<T>::mutex_resource(T* t) {
+    mutex_resource<T>::mutex_resource(T* t, bool _deleteResource) {
         resource = t;
+        
+        // Boolean to allow for control over deleting resource when the mutex_resource itself is deleted
+        deleteResource = _deleteResource;
+
+        // Locked is to keep track of whether the mutex has already been locked, to avoid conflicts
+        // when calling "access" multiple times without releasing the lock, and vice versa with "release"
         locked = false;
     }
 
+    // Method that waits for a lock on the resource mutex, then returns the pointer to the value
+    // Ultimately, it is up to the programmer not to save the pointer and use it outside of the
+    // mutex resource
     template<typename T>
     T* mutex_resource<T>::access() {
         if(!locked) {
@@ -31,29 +43,38 @@ namespace tasker {
         return resource;
     }
 
+    // Releases the lock to allow then next thread in line to acquire a lock
     template<typename T>
     void mutex_resource<T>::release() {
         if(locked) m.unlock();
         locked = false;
     }
 
+    // Destructor
     template<typename T>
     mutex_resource<T>::~mutex_resource() {
-        delete resource;
+        if(deleteResource) delete resource;
     }
 
+    // Error to throw when strings for sql queries are too long. At the time of documenting,
+    // this number is 256 characters for all strings, or as defined by MAX_STRING_LENGTH
+    // in includes/structs.h
     const char* StringTooLongException::what() {
         return "String exceeds maximum acceptable string length (" 
             STR(MAX_STRING_LENGTH) ")";
     }
 
+    // More general exception for other things besides string length
+    // Constructor to allow for custom error message
     TaskerException::TaskerException(const char* message) {
         text = message;
     }
+
     const char* TaskerException::what() {
         return text;
     }
 
+    // The following are constructors/destructors for the status class:
     status::status(const std::string& _name, const int r, const int g, const int b) {
         if(_name.length() > MAX_STRING_LENGTH) throw StringTooLongException();
         *name = _name;
@@ -65,7 +86,9 @@ namespace tasker {
         delete color;
     }
 
+    // The following are constructors/destructors for the task class
     task::task(status* _status, const std::string& _task, const std::string& _date, const std::string& _people, const int& _pos, const int& _id) {
+        // Constructor will throw an error if any of the string arguments are longer than what is defined by MAX_STRING_LENGTH in includes/structs.h
         if(_task.length() > MAX_STRING_LENGTH || _date.length() > MAX_STRING_LENGTH || 
                 _people.length() > MAX_STRING_LENGTH) throw StringTooLongException();
         *taskk = _task;
@@ -84,15 +107,14 @@ namespace tasker {
         delete id;
     }
 
+    // The following are constructors/destructors for the supertask class
     supertask::supertask(const std::string& _name, const std::string& _display_name, const ImVec4& _color) {
+        // Constructor will throw an error if any of the string arguments are longer than what is defined by MAX_STRING_LENGTH in includes/structs.h
         if(_name.length() > MAX_STRING_LENGTH || _display_name.length() > MAX_STRING_LENGTH) 
                     throw StringTooLongException();
         *name = _name;
         *display_name = _display_name;
         tasks = new std::vector<task*>();
-        std::copy(&_name[0], &_name[_name.length()], name);
-        std::copy(&_display_name[0], &_display_name[_display_name.length()], 
-                display_name);
         color = new ImVec4(_color);
     }
 
@@ -104,23 +126,47 @@ namespace tasker {
         delete[] display_name;
     }
 
+    // The following are methods for the workspace class:
+    
+    // Constructor
     workspace::workspace(sql::Connection* _connection, const string& _name) {
+        // Constructor should be provided with an already opened connection, otherwise an error is thrown
         if(_connection == nullptr || _connection->isClosed()) throw TaskerException("Connection cannot be null!");
+
+        // A workspace must have a name, even if it is not represented by a server yet (aka created)
         if(_name.empty()) throw TaskerException("Name cannot be empty!");
-        connection = new mutex_resource<sql::Connection>(_connection);
-        stati = new mutex_resource<std::vector<status*>>(new std::vector<status*>());
-        tasks = new mutex_resource<std::vector<supertask*>>(new std::vector<supertask*>());
+
+        // The connection is added to a mutex resource, to allow for threading
+        connection = new mutex_resource<sql::Connection>(_connection, false);
+
+        // Vectors of the stati and supertasks are created, and wrapped in a mutex_resource
+        stati = new mutex_resource<std::vector<status*>>(new std::vector<status*>(), true);
+        tasks = new mutex_resource<std::vector<supertask*>>(new std::vector<supertask*>(), true);
         name = {_name};
-        stopThread = new mutex_resource<bool>(new bool(false));
-        actionQueue = new mutex_resource<std::queue<string>>(new std::queue<string>);
+
+        // stopThread is a control to end the query threads execution
+        stopThread = new mutex_resource<bool>(new bool(false), true);
+        
+        // actionQueue is the queue used to keep track of the sql queries which must be executed
+        actionQueue = new mutex_resource<std::queue<string>>(new std::queue<string>, true);
+        
+        // Starts the request dispatcher
         requestThread = new std::thread(&workspace::requestDispatcher, this);
     }
 
     workspace::~workspace() {
+        // Sets the stopThread to true, which will stop the request dispatcher
         *stopThread->access() = true;
         stopThread->release();
+
+        // Join the thread to wait for it to finish the queued items
         requestThread->join();
+
+        // Close the connection and delete its mutex_resource
         connection->access()->close();
+        delete connection;
+
+        // Delete the remaining mutex_resources, and the contents of the vectors
         delete stopThread;
         delete actionQueue;
         delete requestThread; 
@@ -130,11 +176,12 @@ namespace tasker {
         delete tasks;
     }
 
+    // Initiates an entire refresh of all data in the workspace, from the server
     void workspace::fullRefresh() {
         sql::Statement* stmt = nullptr;
         sql::ResultSet* result = nullptr;        
         
-        // Create statement to bbe used throughout the fetching of data
+        // Create statement to be used throughout the fetching of data
         stmt = connection->access()->createStatement();
         connection->release();
 
@@ -181,10 +228,14 @@ namespace tasker {
         delete result;
     }
 
+    // Push all data from the local workspace to the sql server
     void workspace::pushData() {
+        // Prepare statement to be used to insert new stati into the stati table, or update existing ones if already present
         sql::PreparedStatement* stmt = connection->access()->prepareStatement("INSERT INTO stati"
                 "(name, r, g, b) values (?, ?, ?, ?) on duplicate key update r=?, g=?, b=?");
         connection->release();
+
+        // Iterate through all stati, and send to server
         int size = stati->access()->size();
         for(int i = 0; i < size; i++) {
             status* s = stati->access()->at(i);
@@ -197,16 +248,24 @@ namespace tasker {
         stati->release();
         delete stmt;
         
+        // Prepare statement to be used to insert/update tables into the tasks_meta table to keep track of color
         stmt = connection->access()->prepareStatement("INSERT INTO tasks_meta(name, r, g, b) "
                 "VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE r=?, g=?, b=?");
+
+        // General statement to allow for creating supertask tables if they do not already exist
         sql::Statement* sstmt = connection->access()->createStatement();
         connection->release();
 
         tasks->access();
+
+        // Iterate through all supertasks
         for(supertask* s : *tasks->access()) {
+            // Create table if not exists
             sstmt->executeUpdate(string("CREATE TABLE IF NOT EXISTS task_").append(*s->name).append(
                         "(task varchar(256), status varchar(64), people varchar(256), date varchar(16),"
                         " pos int DEFAULT 0, idd int NOT NULL AUTO_INCREMENT, primary key(idd))"));
+
+            // Set parameters for insertion into tasks_meta, then update server
             stmt->setString(1, string("task_").append(*s->name));
             int r = (int) (s->color->w * 255);
             int g = (int) (s->color->x * 255);
@@ -219,11 +278,13 @@ namespace tasker {
             stmt->setInt(7, b);
             stmt->executeUpdate();
 
+            // Statement for inserting/updating tasks in supertask table
             sql::PreparedStatement* tsend = connection->access()->prepareStatement(string("insert into task_")
                     .append(*s->name).append("(task, status, people, date, pos, idd) values(?, ?, ?, ?, ?, ?) "
                         "on duplicate key update task=?, status=?, people=?, date=?, pos=?"));
             connection->release();
 
+            // Iterate through individual tasks
             for(task* t : *s->tasks) {
                 tsend->setString(1, *t->taskk); 
                 tsend->setString(2, *t->statuss->name);
@@ -241,16 +302,19 @@ namespace tasker {
 
             delete tsend;
         }
+        tasks->release();
         delete stmt;
         delete sstmt;
     }
 
+    // Create workspace database and prepare it for data
     void workspace::create() {
         sql::Statement* stmt = nullptr;
         sql::ResultSet* r = nullptr;
 
         stmt = connection->access()->createStatement();
         
+        // Determin if the database already exists, and if it does, throw an error
         r = stmt->executeQuery("show databases like '" + connection->access()->getSchema() + "'");
         connection->release();
         if(r->rowsCount() > 0) {
@@ -259,43 +323,53 @@ namespace tasker {
             throw TaskerException("Workspace already exists!");
         }
 
+        // Create the database, set the connection schema, and refresh the statement
         stmt->executeUpdate("create database " + name);
         connection->access()->setSchema(name);
         delete stmt;
         stmt = connection->access()->createStatement();
         connection->release();
+
+        // Create the necessary tables including tasks_meta and stati, and insert the default status (None) into the stati table
         stmt->executeUpdate("create table tasks_meta (name varchar(64), r int, g int, b int, UNIQUE(name))");
         stmt->executeUpdate("create table stati (name varchar(64), r int, g int, b int, UNIQUE(name))");
         stmt->executeUpdate("insert into stati(name, r, g, b) values (\"None\", 0, 0, 0)");
         delete stmt;
     }
 
+    // Function to add sql query to the queue, to be executed
     void workspace::queueQuery(string query) {
         actionQueue->access()->push(query);
         actionQueue->release();
     }
 
+    // Method that actually executes sql queries, to keep load times away from main thread
     void workspace::requestDispatcher() {
-        while(true) {
+        // Detect whether main thread has ordered this thread to stop
+        while(!*stopThread->access()) {
+            stopThread->release();
+
+            // Get the latest queery from the queue
             string query;
             if(actionQueue->access()->size() != 0) {
                query = actionQueue->access()->front();
                actionQueue->access()->pop();
             }
             actionQueue->release();
+
+            // Create statement, and execute the query
             if(!query.empty()) {
                 sql::Statement* stmt = connection->access()->createStatement();
                 connection->release();
                 stmt->executeUpdate(query);
                 delete stmt;
             }
-            if(!*stopThread->access()) {
-                stopThread->release();
-                break;
-            }
         }
+
+        stopThread->release();
     }
 
+    // Helper method to clear a vector of dynamically allocated data properly
     template<typename T>
     void workspace::clearDynamicMemoryVector(std::vector<T>* vector) {
         for(T t : *vector) delete t;
