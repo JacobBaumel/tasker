@@ -375,5 +375,16 @@ namespace tasker {
         for(T t : *vector) delete t;
         vector->clear();
     }
+
+    // Helper method to get a status pointer from its name
+    status* workspace::getStatusFromString(const string& text) {
+        for(status* s : *stati->access()) if(*s->name == text) {
+            stati->release();
+            return s;
+        }
+
+        stati->release();
+        return nullptr;
+    }
     
 }
