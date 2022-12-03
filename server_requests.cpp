@@ -77,7 +77,7 @@ namespace tasker {
     // The following are constructors/destructors for the status class:
     status::status(const std::string& _name, const int r, const int g, const int b) {
         if(_name.length() > MAX_STRING_LENGTH) throw StringTooLongException();
-        *name = _name;
+        name = new string(_name);
         color = new ImVec4(r, g, b, 1.0f);
     }
 
@@ -91,12 +91,12 @@ namespace tasker {
         // Constructor will throw an error if any of the string arguments are longer than what is defined by MAX_STRING_LENGTH in includes/structs.h
         if(_task.length() > MAX_STRING_LENGTH || _date.length() > MAX_STRING_LENGTH || 
                 _people.length() > MAX_STRING_LENGTH) throw StringTooLongException();
-        *taskk = _task;
-        *date = _date;
-        *people = _people;
+        taskk = new string(_task);
+        date = new string(_date);
+        people = new string(_people);
         statuss = _status;
-        *id = {_id};
-        *pos = {_pos};
+        id = new int(_id);
+        pos = new int(_pos);
     }
 
     task::~task() {
@@ -112,8 +112,8 @@ namespace tasker {
         // Constructor will throw an error if any of the string arguments are longer than what is defined by MAX_STRING_LENGTH in includes/structs.h
         if(_name.length() > MAX_STRING_LENGTH || _display_name.length() > MAX_STRING_LENGTH) 
                     throw StringTooLongException();
-        *name = _name;
-        *display_name = _display_name;
+        name = new string(_name);
+        display_name = new string(_display_name);
         tasks = new std::vector<task*>();
         color = new ImVec4(_color);
     }
@@ -122,8 +122,8 @@ namespace tasker {
         for(task* t : *tasks) delete t;
         delete tasks;
         delete color;
-        delete[] name;
-        delete[] display_name;
+        delete name;
+        delete display_name;
     }
 
     // The following are methods for the workspace class:
@@ -337,6 +337,24 @@ namespace tasker {
         delete stmt;
     }
 
+    // Method to change the connection schema and download data if the workspace is already created
+    void workspace::connect() {
+        // Detect if database already exists
+        sql::Statement* stmt = connection->access()->createStatement();
+        connection->release();
+        sql::ResultSet* r = stmt->executeQuery("show databases like \"" + name + "\"");
+        int count = r->rowsCount();
+        delete stmt;
+        delete r;
+        if(count == 0) throw TaskerException("Workspace supplied does not already exist!!");
+        
+
+        // // Set new schema and full refresh the local workspace
+        connection->access()->setSchema(name);
+        connection->release();
+        fullRefresh();
+    }
+
     // Function to add sql query to the queue, to be executed
     void workspace::queueQuery(string query) {
         actionQueue->access()->push(query);
@@ -386,5 +404,29 @@ namespace tasker {
         stati->release();
         return nullptr;
     }
+
+#ifdef TASKER_DEBUG
+    string workspace::toString() {
+        string space = "stati:\n";
+
+        for(status* s : *stati->access()) space.append(*s->name + ": color (" + std::to_string((int) (s->color->w * 255)) + 
+                " " + std::to_string((int) (s->color->x * 255)) + " " + std::to_string((int) (s->color->y * 255)) + ")\n");
+        stati->release();
+
+        space.append("\n\nSupertasks:\n");
+        for(supertask* s : *tasks->access()) {
+            space.append("name: " + *s->name + "\ndisplay name: " + *s->display_name + "\nColor: " + std::to_string((int) (s->color->w * 255)) +
+                " " + std::to_string((int) (s->color->x * 255)) + " " + std::to_string((int) (s->color->y * 255)) + "\nTasks:\n\n");
+            for(task* t : *s->tasks) {
+               space.append(std::to_string(*t->id) + ": " + *t->taskk + "\n");
+            }
+
+            space.append("\n\n");
+        }
+
+
+        return space;
+    }
+#endif
     
 }

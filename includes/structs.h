@@ -104,6 +104,7 @@ namespace tasker {
             void fullRefresh();
             void pushData();
             void create();
+            void connect();
 
             void createCategory(const string& name, const ImVec4& color);
             void dropCategory(supertask* s);
@@ -126,6 +127,10 @@ namespace tasker {
             string getStatusText(status* s);
             ImVec4& getStatusColor(status* s);
             status* getStatusFromString(const string& text);
+
+#ifdef TASKER_DEBUG
+            string toString();
+#endif
 
     };
 }
