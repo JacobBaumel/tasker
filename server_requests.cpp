@@ -240,9 +240,15 @@ namespace tasker {
         for(int i = 0; i < size; i++) {
             status* s = stati->access()->at(i);
             stmt->setString(1, *s->name);
-            stmt->setInt(2, (int) (s->color->w * 255));
-            stmt->setInt(3, (int) (s->color->x * 255));
-            stmt->setInt(4, (int) (s->color->y * 255));
+            int r = (int) s->color->x;
+            int g = (int) s->color->y;
+            int b = (int) s->color->z;
+            stmt->setInt(2, r);
+            stmt->setInt(3, g);
+            stmt->setInt(4, b);
+            stmt->setInt(5, r);
+            stmt->setInt(6, g);
+            stmt->setInt(7, b);
             stmt->executeUpdate();
         }
         stati->release();
@@ -267,9 +273,9 @@ namespace tasker {
 
             // Set parameters for insertion into tasks_meta, then update server
             stmt->setString(1, string("task_").append(*s->name));
-            int r = (int) (s->color->w * 255);
-            int g = (int) (s->color->x * 255);
-            int b = (int) (s->color->y * 255);
+            int r = (int) s->color->x;
+            int g = (int) s->color->y;
+            int b = (int) s->color->z;
             stmt->setInt(2, r);
             stmt->setInt(3, g);
             stmt->setInt(4, b);
@@ -400,23 +406,21 @@ namespace tasker {
             stati->release();
             return s;
         }
-
-        stati->release();
-        return nullptr;
+        throw TaskerException("Status does not exist!!");
     }
 
 #ifdef TASKER_DEBUG
     string workspace::toString() {
         string space = "stati:\n";
 
-        for(status* s : *stati->access()) space.append(*s->name + ": color (" + std::to_string((int) (s->color->w * 255)) + 
-                " " + std::to_string((int) (s->color->x * 255)) + " " + std::to_string((int) (s->color->y * 255)) + ")\n");
+        for(status* s : *stati->access()) space.append(*s->name + ": color (" + std::to_string((int) s->color->x) + 
+                " " + std::to_string((int) s->color->y) + " " + std::to_string((int) s->color->z) + ")\n");
         stati->release();
 
         space.append("\n\nSupertasks:\n");
         for(supertask* s : *tasks->access()) {
-            space.append("name: " + *s->name + "\ndisplay name: " + *s->display_name + "\nColor: " + std::to_string((int) (s->color->w * 255)) +
-                " " + std::to_string((int) (s->color->x * 255)) + " " + std::to_string((int) (s->color->y * 255)) + "\nTasks:\n\n");
+            space.append("name: " + *s->name + "\ndisplay name: " + *s->display_name + "\nColor: " + std::to_string((int) s->color->x) +
+                " " + std::to_string((int) s->color->y) + " " + std::to_string((int) s->color->z) + "\nTasks:\n\n");
             for(task* t : *s->tasks) {
                space.append(std::to_string(*t->id) + ": " + *t->taskk + "\n");
             }
@@ -428,5 +432,4 @@ namespace tasker {
         return space;
     }
 #endif
-    
 }
