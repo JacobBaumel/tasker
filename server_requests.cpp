@@ -374,7 +374,7 @@ namespace tasker {
         fullRefresh();
     }
 
-    void workspace::createCategory(const string& name, const ImVec4& color) {
+    supertask* workspace::createCategory(const string& name, const ImVec4& color) {
         for(supertask* t : *tasks->access()) if(*t->display_name == name) throw TaskerException("Supertask already exists!");
         supertask* t = new supertask(color, name);
         tasks->access()->push_back(t);
@@ -387,6 +387,22 @@ namespace tasker {
             ", " << (int) color.y << ", " << (int) color.z << ")";
         tasks->release();
         queueQuery(ss.str());
+        return t;
+    }
+
+    void workspace::dropCategory(supertask* t) {
+        int index = -1;
+        for(size_t i = 0; i < stati->access()->size(); i++) if(tasks->access()->at(i) == t) index = i;
+        if(index == -1) throw TaskerException("Supertask doesn't exist!");
+        tasks->access()->erase(tasks->access()->begin() + index);
+        tasks->release();
+        std::ostringstream ss;
+        ss << "DROP TABLE task_" << *t->name;
+        queueQuery(ss.str());
+        ss.str("");
+        ss << "DELETE FROM tasks_meta WHERE name=\"task_" << *t->name << '"';
+        queueQuery(ss.str());
+        delete t;
     }
 
     // Function to add sql query to the queue, to be executed
