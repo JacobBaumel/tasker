@@ -391,21 +391,22 @@ namespace tasker {
 
     // Function to add sql query to the queue, to be executed
     void workspace::queueQuery(string query) {
-        std::cout << "Adding query: " << query << std::endl;
         actionQueue->access()->push(query);
         actionQueue->release();
     }
 
     // Method that actually executes sql queries, to keep load times away from main thread
     void workspace::requestDispatcher() {
+        bool hasRequests = false;
         // Detect whether main thread has ordered this thread to stop
-        while(!*stopThread->access()) {
+        while(!*stopThread->access() || hasRequests) {
             stopThread->release();
+            hasRequests = false;
 
             // Get the latest queery from the queue
             string query;
             if(actionQueue->access()->size() != 0) {
-                std::cout << "Queue size: " << actionQueue->access()->size() << std::endl;
+                hasRequests = true;
                 query = actionQueue->access()->front();
                 actionQueue->access()->pop();
             }
@@ -413,7 +414,6 @@ namespace tasker {
 
             // Create statement, and execute the query
             if(!query.empty()) {
-                std::cout << "Starting query: " << query << std::endl;
                 sql::Statement* stmt = connection->access()->createStatement();
                 connection->release();
                 stmt->executeUpdate(query);
