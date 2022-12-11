@@ -4,6 +4,7 @@
 #include <cppconn/resultset.h>
 #include <cppconn/driver.h>
 #include <mutex>
+#include <sstream>
 #include "structs.h"
 
 // Defines for creating the StringTooLongException error message at compile time
@@ -108,14 +109,26 @@ namespace tasker {
     }
 
     // The following are constructors/destructors for the supertask class
-    supertask::supertask(const std::string& _name, const std::string& _display_name, const ImVec4& _color) {
+    // This constructor is for building a supertask from a server side name
+    supertask::supertask(const string& _name, const ImVec4& _color) {
         // Constructor will throw an error if any of the string arguments are longer than what is defined by MAX_STRING_LENGTH in includes/structs.h
-        if(_name.length() > MAX_STRING_LENGTH || _display_name.length() > MAX_STRING_LENGTH) 
+        if(_name.length() > MAX_STRING_LENGTH) 
                     throw StringTooLongException();
-        name = new string(_name);
-        display_name = new string(_display_name);
         tasks = new std::vector<task*>();
         color = new ImVec4(_color);
+        name = new string(_name);
+        display_name = new string(_name);
+        for(size_t i = 0; i < display_name->length(); i++) if((*display_name)[i] == '_') (*display_name)[i] = ' ';
+    }
+
+    // This constructor is for building a supertask from a user inputted display name
+    supertask::supertask(const ImVec4& _color, const string& _display_name) {
+        if(_display_name.length() > MAX_STRING_LENGTH) throw StringTooLongException();
+        tasks = new std::vector<task*>();
+        color = new ImVec4(_color);
+        display_name = new string(_display_name);
+        name = new string(_display_name);
+        for(size_t i = 0; i < name->length(); i++) if((*name)[i] == ' ') (*name)[i] = '_';
     }
 
     supertask::~supertask() {
@@ -214,7 +227,7 @@ namespace tasker {
             // Create a display name by substituting the "_" characters for spaces
             std::string display = table.substr(5);
             for(int i = 0; i < display.length(); i++) if(display[i] == '_') display[i] = ' ';
-            tasker::supertask* task = new tasker::supertask(table.substr(5), display, colors.at(table.substr(5)));
+            tasker::supertask* task = new tasker::supertask(table.substr(5), colors.at(table.substr(5)));
             
             // Iterate through all tasks of supertask and load them into the object
             sql::ResultSet* tasks = stmt->executeQuery("select * from " + table + " order by pos");
@@ -361,8 +374,24 @@ namespace tasker {
         fullRefresh();
     }
 
+    void workspace::createCategory(const string& name, const ImVec4& color) {
+        for(supertask* t : *tasks->access()) if(*t->display_name == name) throw TaskerException("Supertask already exists!");
+        supertask* t = new supertask(color, name);
+        tasks->access()->push_back(t);
+        std::ostringstream ss;
+        ss << "CREATE TABLE task_" << *t->name << "(task varchar(256), status varchar(64), people varchar(256), date varchar(16),"
+                        " pos int DEFAULT 0, idd int NOT NULL AUTO_INCREMENT, primary key(idd))";
+        queueQuery(ss.str());
+        ss.str("");
+        ss << "INSERT INTO tasks_meta(name, r, g, b) VALUES (\"task_" << *t->name << "\", " << (int) color.x <<
+            ", " << (int) color.y << ", " << (int) color.z << ")";
+        tasks->release();
+        queueQuery(ss.str());
+    }
+
     // Function to add sql query to the queue, to be executed
     void workspace::queueQuery(string query) {
+        std::cout << "Adding query: " << query << std::endl;
         actionQueue->access()->push(query);
         actionQueue->release();
     }
@@ -376,13 +405,15 @@ namespace tasker {
             // Get the latest queery from the queue
             string query;
             if(actionQueue->access()->size() != 0) {
-               query = actionQueue->access()->front();
-               actionQueue->access()->pop();
+                std::cout << "Queue size: " << actionQueue->access()->size() << std::endl;
+                query = actionQueue->access()->front();
+                actionQueue->access()->pop();
             }
             actionQueue->release();
 
             // Create statement, and execute the query
             if(!query.empty()) {
+                std::cout << "Starting query: " << query << std::endl;
                 sql::Statement* stmt = connection->access()->createStatement();
                 connection->release();
                 stmt->executeUpdate(query);

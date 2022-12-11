@@ -76,7 +76,8 @@ namespace tasker {
             string* name;
             string* display_name;
 
-            supertask(const std::string& _name, const std::string& _display_name, const ImVec4& _color);
+            supertask(const string& _name, const ImVec4& _color);
+            supertask(const ImVec4& _color, const string& _display_name);
             ~supertask();
     };
 
@@ -115,19 +116,7 @@ namespace tasker {
             task* getTasks();
             int numTasks();
 
-            void createTask(supertask* super);
-            void dropTask(supertask* super, task* t);
-            char* getTaskString();
-            char* getDateString();
-            char* getAssigneesString();
-
-            void createStatus(const string& text, const ImVec4& color);
-            void dropStatus(status* s);
-            void setStatusText(status* s, const string& text);
-            string getStatusText(status* s);
-            ImVec4& getStatusColor(status* s);
-            status* getStatusFromString(const string& text);
-
+            status* getStatusFromString(const string&);
 #ifdef TASKER_DEBUG
             string toString();
 #endif
