@@ -211,7 +211,7 @@ namespace tasker {
         std::map<string, ImColor> colors;
         result = stmt->executeQuery("select * from tasks_meta");
         while(result->next())
-            colors.insert(std::pair<string, ImColor>(result->getString("name"), ImColor{result->getInt("r"), result->getInt("g"), result->getInt("b"), 225}));
+            colors.insert(std::pair<string, ImColor>(result->getString("name"), ImColor(result->getInt("r") * 255, result->getInt("g") * 255, result->getInt("b") * 255, 225 * 255)));
         delete result;
         
         // Construct the supertask objects, and assign their colors from the map
@@ -253,9 +253,9 @@ namespace tasker {
         for(int i = 0; i < size; i++) {
             status* s = stati->access()->at(i);
             stmt->setString(1, *s->name);
-            int r = (int) s->color->x;
-            int g = (int) s->color->y;
-            int b = (int) s->color->z;
+            int r = (int) (s->color->x);
+            int g = (int) (s->color->y);
+            int b = (int) (s->color->z);
             stmt->setInt(2, r);
             stmt->setInt(3, g);
             stmt->setInt(4, b);
@@ -286,9 +286,9 @@ namespace tasker {
 
             // Set parameters for insertion into tasks_meta, then update server
             stmt->setString(1, string("task_").append(*s->name));
-            int r = (int) s->color->x;
-            int g = (int) s->color->y;
-            int b = (int) s->color->z;
+            int r = (int) (s->color->x);
+            int g = (int) (s->color->y);
+            int b = (int) (s->color->z);
             stmt->setInt(2, r);
             stmt->setInt(3, g);
             stmt->setInt(4, b);
@@ -383,11 +383,36 @@ namespace tasker {
                         " pos int DEFAULT 0, idd int NOT NULL AUTO_INCREMENT, primary key(idd))";
         queueQuery(ss.str());
         ss.str("");
-        ss << "INSERT INTO tasks_meta(name, r, g, b) VALUES (\"task_" << *t->name << "\", " << (int) color.x <<
-            ", " << (int) color.y << ", " << (int) color.z << ")";
+        ss << "INSERT INTO tasks_meta(name, r, g, b) VALUES (\"" << *t->name << "\", " << ((int) color.x) <<
+            ", " << ((int) color.y) << ", " << ((int) color.z) << ")";
         tasks->release();
         queueQuery(ss.str());
         return t;
+    }
+
+    void workspace::setCategoryColor(supertask* s, const ImVec4& color) {
+        delete s->color;
+        s->color = new ImVec4(color);
+        std::ostringstream ss;
+        ss << "UPDATE tasks_meta SET r=" << ((int) color.x) << ", g=" << ((int) color.y) << ", b=" << 
+            ((int) color.z) << " WHERE name=\"" << *s->name << '"';
+        queueQuery(ss.str());
+    }
+
+    void workspace::setCategoryName(supertask* s, const string& name) {
+        delete s->display_name;
+        s->display_name = new string(name);
+        string nname = name;
+        for(size_t i = 0; i < nname.length(); i++) if(nname[i] == ' ') nname[i] = '_';
+        std::ostringstream ss;
+        ss << "ALTER TABLE task_" << *s->name << " RENAME TO task_" << nname;
+        string old = *s->name;
+        delete s->name;
+        s->name = new string(nname);
+        queueQuery(ss.str());
+        ss.str("");
+        ss << "UPDATE tasks_meta SET name=\"" << nname << "\" WHERE name=\"" << old << '"';
+        queueQuery(ss.str());
     }
 
     void workspace::dropCategory(supertask* t) {
@@ -400,7 +425,7 @@ namespace tasker {
         ss << "DROP TABLE task_" << *t->name;
         queueQuery(ss.str());
         ss.str("");
-        ss << "DELETE FROM tasks_meta WHERE name=\"task_" << *t->name << '"';
+        ss << "DELETE FROM tasks_meta WHERE name=\"" << *t->name << '"';
         queueQuery(ss.str());
         delete t;
     }
@@ -419,7 +444,7 @@ namespace tasker {
             stopThread->release();
             hasRequests = false;
 
-            // Get the latest queery from the queue
+            // Get the latest query from the queue
             string query;
             if(actionQueue->access()->size() != 0) {
                 hasRequests = true;
@@ -432,6 +457,7 @@ namespace tasker {
             if(!query.empty()) {
                 sql::Statement* stmt = connection->access()->createStatement();
                 connection->release();
+                std::cout << "Running query: " << query << std::endl;
                 stmt->executeUpdate(query);
                 delete stmt;
             }
@@ -461,13 +487,13 @@ namespace tasker {
         string space = "stati:\n";
 
         for(status* s : *stati->access()) space.append(*s->name + ": color (" + std::to_string((int) s->color->x) + 
-                " " + std::to_string((int) s->color->y) + " " + std::to_string((int) s->color->z) + ")\n");
+                " " + std::to_string((int) s->color->y) + " " + std::to_string((int) s->color->z) + " " + std::to_string((int) s->color->w) + ")\n");
         stati->release();
 
         space.append("\n\nSupertasks:\n");
         for(supertask* s : *tasks->access()) {
             space.append("name: " + *s->name + "\ndisplay name: " + *s->display_name + "\nColor: " + std::to_string((int) s->color->x) +
-                " " + std::to_string((int) s->color->y) + " " + std::to_string((int) s->color->z) + "\nTasks:\n\n");
+                " " + std::to_string((int) s->color->y) + " " + std::to_string((int) s->color->z) + " " + std::to_string((int) s->color->w) + "\nTasks:\n\n");
             for(task* t : *s->tasks) {
                space.append(std::to_string(*t->id) + ": " + *t->taskk + "\n");
             }

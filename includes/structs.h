@@ -107,7 +107,7 @@ namespace tasker {
             void create();
             void connect();
 
-            void createCategory(const string& name, const ImVec4& color);
+            supertask* createCategory(const string& name, const ImVec4& color);
             void dropCategory(supertask* s);
             void setCategoryColor(supertask* s, const ImVec4& color);
             void setCategoryName(supertask* s, const string& name);
