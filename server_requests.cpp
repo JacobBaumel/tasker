@@ -5,14 +5,14 @@
 #include <cppconn/driver.h>
 #include <mutex>
 #include <sstream>
-#include "structs.h"
+#include "structs.hpp"
 
 // Defines for creating the StringTooLongException error message at compile time
 #define _STR(X) #X
 #define STR(X) _STR(X)
 
 #include "imgui.h"
-#include "structs.h"
+
 using std::string;
 
 namespace tasker {
@@ -211,7 +211,7 @@ namespace tasker {
         std::map<string, ImColor> colors;
         result = stmt->executeQuery("select * from tasks_meta");
         while(result->next())
-            colors.insert(std::pair<string, ImColor>(result->getString("name"), ImColor(result->getInt("r") * 255, result->getInt("g") * 255, result->getInt("b") * 255, 225 * 255)));
+            colors.insert(std::pair<string, ImVec4>(result->getString("name"), ImVec4(result->getInt("r"), result->getInt("g"), result->getInt("b"), 255)));
         delete result;
         
         // Construct the supertask objects, and assign their colors from the map
