@@ -47,10 +47,15 @@ namespace tasker {
         friend class workspace;
         private:
             string* name;
-            ImVec4* color;
+            ImColor* color;
+            ImVec4* rawColor;
 
             status(const std::string& _name, const int r, const int g, const int b);
             ~status();
+
+        public:
+            const ImColor* getColor();
+            const char* getName();
     };
 
     class task {
@@ -66,19 +71,30 @@ namespace tasker {
 
             task(status* _statuss, const std::string& _taskk, const std::string& _date, const std::string& _people, const int& _pos, const int& _id);
             ~task();
+
+        public:
+            const status* getStatus();
+            const char* getTask();
+            const char* getDate();
+            const char* getPeople();
     };
 
     class supertask {
         friend class workspace;
         private:
             std::vector<task*>* tasks;
-            ImVec4* color;
+            ImColor* color;
+            ImVec4* rawColor;
             string* name;
             string* display_name;
 
             supertask(const string& _name, const ImVec4& _color);
             supertask(const ImVec4& _color, const string& _display_name);
             ~supertask();
+
+        public:
+            const ImColor* getColor();
+            const char* getName();
     };
 
     class workspace {
