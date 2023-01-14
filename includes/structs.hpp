@@ -47,14 +47,13 @@ namespace tasker {
         friend class workspace;
         private:
             string* name;
-            ImColor* color;
-            ImVec4* rawColor;
+            ImVec4* color;
 
-            status(const std::string& _name, const int r, const int g, const int b);
+            status(const std::string& _name, const ImVec4& color);
             ~status();
 
         public:
-            const ImColor* getColor();
+            const ImVec4* getColor();
             const char* getName();
     };
 
@@ -83,8 +82,7 @@ namespace tasker {
         friend class workspace;
         private:
             std::vector<task*>* tasks;
-            ImColor* color;
-            ImVec4* rawColor;
+            ImVec4* color;
             string* name;
             string* display_name;
 
@@ -93,7 +91,7 @@ namespace tasker {
             ~supertask();
 
         public:
-            const ImColor* getColor();
+            const ImVec4* getColor();
             const char* getName();
     };
 
@@ -127,8 +125,6 @@ namespace tasker {
             void dropCategory(supertask* s);
             void setCategoryColor(supertask* s, const ImVec4& color);
             void setCategoryName(supertask* s, const string& name);
-            string getCategoryName(supertask* s);
-            ImVec4 getCategoryColor(supertask* s);
             task* getTasks();
             int numTasks();
 

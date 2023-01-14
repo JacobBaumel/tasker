@@ -75,21 +75,17 @@ namespace tasker {
         return text;
     }
 
-    // The following are constructors/destructors for the status class:
-    status::status(const std::string& _name, const int r, const int g, const int b) {
-        if(_name.length() > MAX_STRING_LENGTH) throw StringTooLongException();
+    status::status(const string& _name, const ImVec4& _color) {
         name = new string(_name);
-        rawColor = new ImVec4(r, g, b, 255);
-        color = new ImColor(*rawColor);
+        color = new ImVec4(_color);
     }
 
     status::~status() {
         delete name;
         delete color;
-        delete rawColor;
     }
 
-    const ImColor* status::getColor() {
+    const ImVec4* status::getColor() {
         return color;
     }
 
@@ -141,8 +137,7 @@ namespace tasker {
         if(_name.length() > MAX_STRING_LENGTH) 
                     throw StringTooLongException();
         tasks = new std::vector<task*>();
-        rawColor = new ImVec4(_color);
-        color = new ImColor(_color);
+        color = new ImVec4(_color);
         name = new string(_name);
         display_name = new string(_name);
         for(size_t i = 0; i < display_name->length(); i++) if((*display_name)[i] == '_') (*display_name)[i] = ' ';
@@ -152,8 +147,7 @@ namespace tasker {
     supertask::supertask(const ImVec4& _color, const string& _display_name) {
         if(_display_name.length() > MAX_STRING_LENGTH) throw StringTooLongException();
         tasks = new std::vector<task*>();
-        rawColor = new ImVec4(_color);
-        color = new ImColor(_color);
+        color = new ImVec4(_color);
         display_name = new string(_display_name);
         name = new string(_display_name);
         for(size_t i = 0; i < name->length(); i++) if((*name)[i] == ' ') (*name)[i] = '_';
@@ -163,12 +157,11 @@ namespace tasker {
         for(task* t : *tasks) delete t;
         delete tasks;
         delete color;
-        delete rawColor;
         delete name;
         delete display_name;
     }
 
-    const ImColor* supertask::getColor() {
+    const ImVec4* supertask::getColor() {
         return color;
     }
 
@@ -239,7 +232,7 @@ namespace tasker {
         result = stmt->executeQuery("select * from stati");
         clearDynamicMemoryVector(stati->access());
         while(result->next())
-            stati->access()->push_back(new tasker::status(result->getString("name"), result->getInt("r"), result->getInt("g"), result->getInt("b")));
+            stati->access()->push_back(new tasker::status(result->getString("name"), ImVec4(result->getInt("r"), result->getInt("g"), result->getInt("b"), 255)));
         stati->release();
         
         delete result;
@@ -290,9 +283,9 @@ namespace tasker {
         for(int i = 0; i < size; i++) {
             status* s = stati->access()->at(i);
             stmt->setString(1, *s->name);
-            int r = s->rawColor->x;
-            int g = s->rawColor->y;
-            int b = s->rawColor->z;
+            int r = s->color->x;
+            int g = s->color->y;
+            int b = s->color->z;
             stmt->setInt(2, r);
             stmt->setInt(3, g);
             stmt->setInt(4, b);
@@ -323,9 +316,9 @@ namespace tasker {
 
             // Set parameters for insertion into tasks_meta, then update server
             stmt->setString(1, string("task_").append(*s->name));
-            int r = s->rawColor->x;
-            int g = s->rawColor->y;
-            int b = s->rawColor->z;
+            int r = s->color->x;
+            int g = s->color->y;
+            int b = s->color->z;
             stmt->setInt(2, r);
             stmt->setInt(3, g);
             stmt->setInt(4, b);
@@ -429,7 +422,7 @@ namespace tasker {
 
     void workspace::setCategoryColor(supertask* s, const ImVec4& color) {
         delete s->color;
-        s->color = new ImColor(color);
+        s->color = new ImVec4(color);
         std::ostringstream ss;
         ss << "UPDATE tasks_meta SET r=" << ((int) color.x) << ", g=" << ((int) color.y) << ", b=" << 
             ((int) color.z) << " WHERE name=\"" << *s->name << '"';
@@ -523,14 +516,14 @@ namespace tasker {
     string workspace::toString() {
         string space = "stati:\n";
 
-        for(status* s : *stati->access()) space.append(*s->name + ": color (" + std::to_string(s->rawColor->x) + 
-                " " + std::to_string(s->rawColor->y) + " " + std::to_string(s->rawColor->z) + " " + std::to_string(s->rawColor->w) + ")\n");
+        for(status* s : *stati->access()) space.append(*s->name + ": color (" + std::to_string((int) s->color->x) + 
+                " " + std::to_string((int) s->color->y) + " " + std::to_string((int) s->color->z) + " " + std::to_string((int) s->color->w) + ")\n");
         stati->release();
 
         space.append("\n\nSupertasks:\n");
         for(supertask* s : *tasks->access()) {
-            space.append("name: " + *s->name + "\ndisplay name: " + *s->display_name + "\nColor: " + std::to_string(s->rawColor->x) +
-                " " + std::to_string(s->rawColor->y) + " " + std::to_string(s->rawColor->z) + " " + std::to_string(s->rawColor->w) + "\nTasks:\n\n");
+            space.append("name: " + *s->name + "\ndisplay name: " + *s->display_name + "\nColor: " + std::to_string((int) s->color->x) +
+                " " + std::to_string((int) s->color->y) + " " + std::to_string((int) s->color->z) + " " + std::to_string((int) s->color->w) + "\nTasks:\n\n");
             for(task* t : *s->tasks) {
                space.append(std::to_string(*t->id) + ": " + *t->taskk + "\n");
             }
