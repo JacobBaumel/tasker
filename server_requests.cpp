@@ -436,13 +436,12 @@ namespace tasker {
         for(size_t i = 0; i < nname.length(); i++) if(nname[i] == ' ') nname[i] = '_';
         std::ostringstream ss;
         ss << "ALTER TABLE task_" << *s->name << " RENAME TO task_" << nname;
-        string old = *s->name;
-        delete s->name;
-        s->name = new string(nname);
         queueQuery(ss.str());
         ss.str("");
-        ss << "UPDATE tasks_meta SET name=\"" << nname << "\" WHERE name=\"" << old << '"';
+        ss << "UPDATE tasks_meta SET name=\"" << nname << "\" WHERE name=\"" << *s->name << '"';
         queueQuery(ss.str());
+        delete s->name;
+        s->name = new string(nname);
     }
 
     void workspace::dropCategory(supertask* t) {
