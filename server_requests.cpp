@@ -192,8 +192,8 @@ namespace tasker {
         connection = new mutex_resource<sql::Connection>(_connection, false);
 
         // Vectors of the stati and supertasks are created, and wrapped in a mutex_resource
-        stati = new mutex_resource<std::vector<status*>>(new std::vector<status*>(), true);
-        tasks = new mutex_resource<std::vector<supertask*>>(new std::vector<supertask*>(), true);
+        stati = new std::vector<status*>();
+        tasks = new std::vector<supertask*>();
         name = {_name};
 
         // stopThread is a control to end the query threads execution
@@ -222,9 +222,9 @@ namespace tasker {
         delete stopThread;
         delete actionQueue;
         delete requestThread; 
-        for(status* s : *stati->access()) delete s;
+        for(status* s : *stati) delete s;
         delete stati;
-        for(supertask* t : *tasks->access()) delete t;
+        for(supertask* t : *tasks) delete t;
         delete tasks;
     }
 
@@ -239,10 +239,9 @@ namespace tasker {
 
         // Load status options into a vector
         result = stmt->executeQuery("select * from stati");
-        clearDynamicMemoryVector(stati->access());
+        clearDynamicMemoryVector(stati);
         while(result->next())
-            stati->access()->push_back(new tasker::status(result->getString("name"), ImVec4(result->getInt("r"), result->getInt("g"), result->getInt("b"), 255)));
-        stati->release();
+            stati->push_back(new tasker::status(result->getString("name"), ImVec4(result->getInt("r"), result->getInt("g"), result->getInt("b"), 255)));
         
         delete result;
 
@@ -255,7 +254,7 @@ namespace tasker {
         
         // Construct the supertask objects, and assign their colors from the map
         result = stmt->executeQuery("show tables");
-        clearDynamicMemoryVector(tasks->access());
+        clearDynamicMemoryVector(tasks);
         while(result->next()) {
             std::string table = result->getString("Tables_in_" + connection->access()->getSchema());
             connection->release();
@@ -274,9 +273,8 @@ namespace tasker {
                 task->tasks->push_back(new tasker::task(task, getStatusFromString(tasks->getString("status")), tasks->getString("task"), 
                             tasks->getString("date"), tasks->getString("people"), tasks->getInt("pos"), tasks->getInt("idd")));
         
-            this->tasks->access()->push_back(task);
+            this->tasks->push_back(task);
         }
-        this->tasks->release();
         delete stmt;
         delete result;
     }
@@ -289,9 +287,9 @@ namespace tasker {
         connection->release();
 
         // Iterate through all stati, and send to server
-        int size = stati->access()->size();
+        int size = stati->size();
         for(int i = 0; i < size; i++) {
-            status* s = stati->access()->at(i);
+            status* s = stati->at(i);
             stmt->setString(1, *s->name);
             int r = s->color->x;
             int g = s->color->y;
@@ -304,7 +302,6 @@ namespace tasker {
             stmt->setInt(7, b);
             stmt->executeUpdate();
         }
-        stati->release();
         delete stmt;
         
         // Prepare statement to be used to insert/update tables into the tasks_meta table to keep track of color
@@ -315,10 +312,8 @@ namespace tasker {
         sql::Statement* sstmt = connection->access()->createStatement();
         connection->release();
 
-        tasks->access();
-
         // Iterate through all supertasks
-        for(supertask* s : *tasks->access()) {
+        for(supertask* s : *tasks) {
             // Create table if not exists
             sstmt->executeUpdate(string("CREATE TABLE IF NOT EXISTS task_").append(*s->name).append(
                         "(task varchar(256), status varchar(64), people varchar(256), date varchar(16),"
@@ -361,7 +356,6 @@ namespace tasker {
 
             delete tsend;
         }
-        tasks->release();
         delete stmt;
         delete sstmt;
     }
@@ -415,9 +409,9 @@ namespace tasker {
     }
 
     supertask* workspace::createCategory(const string& name, const ImVec4& color) {
-        for(supertask* t : *tasks->access()) if(*t->display_name == name) throw TaskerException("Supertask already exists!");
+        for(supertask* t : *tasks) if(*t->display_name == name) throw TaskerException("Supertask already exists!");
         supertask* t = new supertask(color, name);
-        tasks->access()->push_back(t);
+        tasks->push_back(t);
         std::ostringstream ss;
         ss << "CREATE TABLE task_" << *t->name << "(task varchar(256), status varchar(64), people varchar(256), date varchar(16),"
                         " pos int DEFAULT 0, idd int NOT NULL AUTO_INCREMENT, primary key(idd))";
@@ -425,7 +419,6 @@ namespace tasker {
         ss.str("");
         ss << "INSERT INTO tasks_meta(name, r, g, b) VALUES (\"" << *t->name << "\", " << ((int) color.x) <<
             ", " << ((int) color.y) << ", " << ((int) color.z) << ")";
-        tasks->release();
         queueQuery(ss.str());
         return t;
     }
@@ -456,10 +449,9 @@ namespace tasker {
 
     void workspace::dropCategory(supertask* t) {
         int index = -1;
-        for(size_t i = 0; i < stati->access()->size(); i++) if(tasks->access()->at(i) == t) index = i;
+        for(size_t i = 0; i < tasks->size(); i++) if(tasks->at(i) == t) index = i;
         if(index == -1) throw TaskerException("Supertask doesn't exist!");
-        tasks->access()->erase(tasks->access()->begin() + index);
-        tasks->release();
+        tasks->erase(tasks->begin() + index);
         std::ostringstream ss;
         ss << "DROP TABLE task_" << *t->name;
         queueQuery(ss.str());
@@ -550,8 +542,7 @@ namespace tasker {
 
     // Helper method to get a status pointer from its name
     status* workspace::getStatusFromString(const string& text) {
-        for(status* s : *stati->access()) if(*s->name == text) {
-            stati->release();
+        for(status* s : *stati) if(*s->name == text) {
             return s;
         }
         throw TaskerException("Status does not exist!!");
@@ -561,12 +552,11 @@ namespace tasker {
     string workspace::toString() {
         string space = "stati:\n";
 
-        for(status* s : *stati->access()) space.append(*s->name + ": color (" + std::to_string((int) s->color->x) + 
+        for(status* s : *stati) space.append(*s->name + ": color (" + std::to_string((int) s->color->x) + 
                 " " + std::to_string((int) s->color->y) + " " + std::to_string((int) s->color->z) + " " + std::to_string((int) s->color->w) + ")\n");
-        stati->release();
 
         space.append("\n\nSupertasks:\n");
-        for(supertask* s : *tasks->access()) {
+        for(supertask* s : *tasks) {
             space.append("name: " + *s->name + "\ndisplay name: " + *s->display_name + "\nColor: " + std::to_string((int) s->color->x) +
                 " " + std::to_string((int) s->color->y) + " " + std::to_string((int) s->color->z) + " " + std::to_string((int) s->color->w) + "\nTasks:\n\n");
             for(task* t : *s->tasks) {

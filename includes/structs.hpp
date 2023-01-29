@@ -105,10 +105,9 @@ namespace tasker {
             string name;
             std::thread* requestThread;
             mutex_resource<sql::Connection>* connection;
-            mutex_resource<std::vector<status*>>* stati;
-            mutex_resource<std::vector<supertask*>>* tasks;
+            std::vector<status*>* stati;
+            std::vector<supertask*>* tasks;
             mutex_resource<bool>* stopThread;
-
             mutex_resource<std::queue<string>>* actionQueue;
 
             void queueQuery(string);
