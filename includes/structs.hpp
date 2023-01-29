@@ -57,10 +57,13 @@ namespace tasker {
             const char* getName();
     };
 
+    class supertask;
+
     class task {
         friend class workspace;
         friend class supertask;
         private:
+            supertask* super;
             status* statuss;
             string* taskk;
             string* date;
@@ -68,7 +71,7 @@ namespace tasker {
             int* pos;
             int* id;
 
-            task(status* _statuss, const std::string& _taskk, const std::string& _date, const std::string& _people, const int& _pos, const int& _id);
+            task(supertask* super, status* _statuss, const std::string& _taskk, const std::string& _date, const std::string& _people, const int& _pos, const int& _id);
             ~task();
 
         public:
@@ -93,6 +96,8 @@ namespace tasker {
         public:
             const ImVec4* getColor();
             const char* getName();
+            const char* getDisplay();
+            const std::vector<task*>* getTasks();
     };
 
     class workspace {
@@ -125,8 +130,12 @@ namespace tasker {
             void dropCategory(supertask* s);
             void setCategoryColor(supertask* s, const ImVec4& color);
             void setCategoryName(supertask* s, const string& name);
-            task* getTasks();
-            int numTasks();
+
+            void setTaskStatus(task* task, status* status);
+            void setTaskDate(task* task, const string& date);
+            void setTaskPeople(task* task, const string& date);
+            void setTaskTask(task* task, const string& people);
+            
 
             status* getStatusFromString(const string&);
 #ifdef TASKER_DEBUG

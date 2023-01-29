@@ -94,7 +94,7 @@ namespace tasker {
     }
 
     // The following are constructors/destructors for the task class
-    task::task(status* _status, const std::string& _task, const std::string& _date, const std::string& _people, const int& _pos, const int& _id) {
+    task::task(supertask* super, status* _status, const std::string& _task, const std::string& _date, const std::string& _people, const int& _pos, const int& _id) {
         // Constructor will throw an error if any of the string arguments are longer than what is defined by MAX_STRING_LENGTH in includes/structs.h
         if(_task.length() > MAX_STRING_LENGTH || _date.length() > MAX_STRING_LENGTH || 
                 _people.length() > MAX_STRING_LENGTH) throw StringTooLongException();
@@ -104,6 +104,7 @@ namespace tasker {
         statuss = _status;
         id = new int(_id);
         pos = new int(_pos);
+        this->super = super;
     }
 
     task::~task() {
@@ -167,6 +168,14 @@ namespace tasker {
 
     const char* supertask::getName() {
         return name->c_str();
+    }
+
+    const char* supertask::getDisplay() {
+        return display_name->c_str();
+    }
+
+    const std::vector<task*>* supertask::getTasks() {
+        return tasks;
     }
 
     // The following are methods for the workspace class:
@@ -262,7 +271,8 @@ namespace tasker {
             // Iterate through all tasks of supertask and load them into the object
             sql::ResultSet* tasks = stmt->executeQuery("select * from " + table + " order by pos");
             while(tasks->next()) 
-                task->tasks->push_back(new tasker::task(getStatusFromString(tasks->getString("status")), tasks->getString("task"), tasks->getString("date"), tasks->getString("people"), tasks->getInt("pos"), tasks->getInt("idd")));
+                task->tasks->push_back(new tasker::task(task, getStatusFromString(tasks->getString("status")), tasks->getString("task"), 
+                            tasks->getString("date"), tasks->getString("people"), tasks->getInt("pos"), tasks->getInt("idd")));
         
             this->tasks->access()->push_back(task);
         }
@@ -459,6 +469,42 @@ namespace tasker {
         delete t;
     }
 
+    void workspace::setTaskStatus(task* task, status* status) {
+        task->statuss = status;
+
+        std::ostringstream ss;
+        ss << "UPDATE TABLE " << task->super->getName() << " SET status=\"" << status->name << "\" WHERE idd=" << task->id;
+        queueQuery(ss.str());
+
+    }
+
+    void workspace::setTaskDate(task* task, const string& date) {
+        delete task->date;
+        task->date = new string(date);
+
+        std::ostringstream ss;
+        ss << "UPDATE TABLE " << task->super->getName() << " SET date=\"" << date << "\" WHERE idd=" << task->id;
+        queueQuery(ss.str());
+    }
+
+    void workspace::setTaskPeople(task* task, const string& people) {
+        delete task->people;
+        task->people = new string(people);
+
+        std::ostringstream ss;
+        ss << "UPDATE TABLE " << task->super->getName() << " SET people=\"" << people << "\" WHERE idd=" << task->id;
+        queueQuery(ss.str());
+    }
+    
+    void workspace::setTaskTask(task* task, const string& taskString) {
+        delete task->taskk;
+        task->taskk = new string(taskString);
+
+        std::ostringstream ss;
+        ss << "UPDATE TABLE " << task->super->getName() << "SET task=\"" << taskString << "\" WHERE idd=" << task->id;
+        queueQuery(ss.str());
+    }
+    
     // Function to add sql query to the queue, to be executed
     void workspace::queueQuery(string query) {
         actionQueue->access()->push(query);
