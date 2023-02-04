@@ -461,6 +461,10 @@ namespace tasker {
         delete t;
     }
 
+    const std::vector<supertask*>* workspace::getSupers() {
+        return tasks;
+    }
+
     void workspace::setTaskStatus(task* task, status* status) {
         task->statuss = status;
 
@@ -497,6 +501,71 @@ namespace tasker {
         queueQuery(ss.str());
     }
     
+    task* workspace::createTask(supertask* super, status* status, const string& taskk, const string& people, const string& date) {
+        int pos = super->tasks->size();
+        int id = 0;
+        for(const tasker::task* t : *super->tasks) if(*t->id > id) id = *t->id;
+        id++;
+        tasker::task* newT = new tasker::task(super, status, taskk, date, people, pos, id);
+        super->tasks->push_back(newT);
+
+        std::ostringstream ss;
+        ss << "INSERT INTO task_" << super->getName() << " (task, status, people, date, pos, id) VALUES (\"" << newT->taskk <<
+            "\", \"" << newT->statuss->name << "\", \"" << newT->people << "\", \"" << newT->date << "\", " << newT->pos << ", " << newT->id << ")";
+        queueQuery(ss.str());
+
+        return newT;
+    }
+
+    void workspace::dropTask(task* task) {
+        size_t index;
+        for(index = 0; task->id != task->super->tasks->at(index)->id; index++); 
+        task->super->tasks->erase(task->super->tasks->begin() + index);
+        std::ostringstream ss;
+        ss << "DELETE FROM task_" << task->super->getName() << "WHERE idd=" << task->id;
+        queueQuery(ss.str());
+        delete task;
+    }
+
+    const std::vector<status*>* workspace::getStati() {
+        return stati;
+    }
+
+    status* workspace::createStatus(const string& name, const ImVec4& color) {
+        status* newS = new status(name, color);
+        stati->push_back(newS);
+        std::ostringstream ss;
+        ss << "INSERT INTO stati (name, r, g, b) values (\"" << name << "\", " << (int) color.x << ", " << (int) color.y << ", " << (int) color.z << ")";
+        queueQuery(ss.str());
+        return newS;
+    }
+
+    void workspace::dropStatus(status* status) {
+        size_t index;
+        for(index = 0; status != stati->at(index); index++);
+        stati->erase(stati->begin() + index);
+        std::ostringstream ss;
+        ss << "DELETE FROM stati WHERE name=\"" << status->name << "\"";
+        queueQuery(ss.str());
+        delete status;
+    }
+
+    void workspace::setStatusColor(status* status, const ImVec4& color) {
+        delete status->color;
+        status->color = new ImVec4(color);
+        std::ostringstream ss;
+        ss << "UPDATE TABLE stati SET r=" << (int) color.x << ", g=" << (int) color.y << ", b=" << (int) color.z << " WHERE name=\"" << status->name << "\"";
+        queueQuery(ss.str());
+    }
+
+    void workspace::setStatusName(status* status, const string& name) {
+        std::ostringstream ss;
+        ss << "UPDATE TABLE stati SET name=\"" << name << "\" WHERE name=\"" << status->name << "\"";
+        queueQuery(ss.str());
+        delete status->name;
+        status->name = new string(name);
+    }
+
     // Function to add sql query to the queue, to be executed
     void workspace::queueQuery(string query) {
         actionQueue->access()->push(query);

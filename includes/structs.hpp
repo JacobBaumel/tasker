@@ -129,12 +129,20 @@ namespace tasker {
             void dropCategory(supertask* s);
             void setCategoryColor(supertask* s, const ImVec4& color);
             void setCategoryName(supertask* s, const string& name);
+            const std::vector<supertask*>* getSupers();
 
             void setTaskStatus(task* task, status* status);
             void setTaskDate(task* task, const string& date);
             void setTaskPeople(task* task, const string& date);
             void setTaskTask(task* task, const string& people);
-            
+            task* createTask(supertask* super, status* status, const string& task, const string& people, const string& date);
+            void dropTask(task* task);
+
+            const std::vector<status*>* getStati();
+            status* createStatus(const string& name, const ImVec4& color);
+            void dropStatus(status* statuss);
+            void setStatusColor(status* status, const ImVec4& color);
+            void setStatusName(status* status, const string& name);
 
             status* getStatusFromString(const string&);
 #ifdef TASKER_DEBUG
