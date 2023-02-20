@@ -408,138 +408,214 @@ namespace tasker {
         fullRefresh();
     }
 
+    // Creates a new category based on the name and color provided
     supertask* workspace::createCategory(const string& name, const ImVec4& color) {
+        // Search through existing supertasks and make sure that the name does not already exist
         for(supertask* t : *tasks) if(*t->display_name == name) throw TaskerException("Supertask already exists!");
+
+        // Create the supertask and add it to the list of workspace supertasks
         supertask* t = new supertask(color, name);
         tasks->push_back(t);
+
+        // Create an sql query to update the server with the change, and allow the request dispatcher to handle it
+        // Create the table itself
         std::ostringstream ss;
         ss << "CREATE TABLE task_" << *t->name << "(task varchar(256), status varchar(64), people varchar(256), date varchar(16),"
                         " pos int DEFAULT 0, idd int NOT NULL AUTO_INCREMENT, primary key(idd))";
         queueQuery(ss.str());
         ss.str("");
+
+        // Add an entry to the tasks_meta table to store color
         ss << "INSERT INTO tasks_meta(name, r, g, b) VALUES (\"" << *t->name << "\", " << ((int) color.x) <<
             ", " << ((int) color.y) << ", " << ((int) color.z) << ")";
         queueQuery(ss.str());
+
+        // Return the newly created task for the UI to use
         return t;
     }
 
+    // Changes a supertasks color to something else
     void workspace::setCategoryColor(supertask* s, const ImVec4& color) {
+        // Delete the old pointer, and assign a new one with changed values
         delete s->color;
         s->color = new ImVec4(color);
+
+        // Update sql database
         std::ostringstream ss;
         ss << "UPDATE tasks_meta SET r=" << ((int) color.x) << ", g=" << ((int) color.y) << ", b=" << 
             ((int) color.z) << " WHERE name=\"" << *s->name << '"';
         queueQuery(ss.str());
     }
 
+    // Changes a supertasks name to something else
     void workspace::setCategoryName(supertask* s, const string& name) {
+        // Delete the old pointer, and assign a new one with the changed values
+        // First change the display name
         delete s->display_name;
         s->display_name = new string(name);
         string nname = name;
+        
+        // Modify name to be suited as an sql table name
         for(size_t i = 0; i < nname.length(); i++) if(nname[i] == ' ') nname[i] = '_';
+
+        // Change the name of the table itself
         std::ostringstream ss;
         ss << "ALTER TABLE task_" << *s->name << " RENAME TO task_" << nname;
         queueQuery(ss.str());
         ss.str("");
+
+        // Change the tasks_meta entry to match the new name
         ss << "UPDATE tasks_meta SET name=\"" << nname << "\" WHERE name=\"" << *s->name << '"';
         queueQuery(ss.str());
+
+        // Finally change the local server-version name to the new version
         delete s->name;
         s->name = new string(nname);
     }
 
+    // Delete a supertask and its subtasks from the workspae
     void workspace::dropCategory(supertask* t) {
+        // Ensure the supertask exists before proceeding
         int index = -1;
         for(size_t i = 0; i < tasks->size(); i++) if(tasks->at(i) == t) index = i;
         if(index == -1) throw TaskerException("Supertask doesn't exist!");
+
+        // Delete the supertask from the list
         tasks->erase(tasks->begin() + index);
+
+        // Drop the sql table
         std::ostringstream ss;
         ss << "DROP TABLE task_" << *t->name;
         queueQuery(ss.str());
         ss.str("");
+
+        // Delete the tasks_meta entry for the supertask
         ss << "DELETE FROM tasks_meta WHERE name=\"" << *t->name << '"';
         queueQuery(ss.str());
+
+        // Delete the supertask from memory
         delete t;
     }
 
+    // Returns a const vector of all the known supertasks, so the UI can iterate over them and access them.
+    // The UI does still have to use the setter methods provided by the workspace object
     const std::vector<supertask*>* workspace::getSupers() {
         return tasks;
     }
 
+    // Sets the status pointer of a task object
     void workspace::setTaskStatus(task* task, status* status) {
+        // Set the pointer
         task->statuss = status;
 
+        // Update sql server with new information
         std::ostringstream ss;
         ss << "UPDATE TABLE " << task->super->getName() << " SET status=\"" << status->name << "\" WHERE idd=" << task->id;
         queueQuery(ss.str());
 
     }
 
+    // Sets the date field for a task
     void workspace::setTaskDate(task* task, const string& date) {
+        // Deletes the old date and creates a new one
         delete task->date;
         task->date = new string(date);
 
+        // Updates server with new information
         std::ostringstream ss;
         ss << "UPDATE TABLE " << task->super->getName() << " SET date=\"" << date << "\" WHERE idd=" << task->id;
         queueQuery(ss.str());
     }
 
+    // Sets the people field for a task
     void workspace::setTaskPeople(task* task, const string& people) {
+        // Delete the old people field and creates the new one
         delete task->people;
         task->people = new string(people);
 
+        // Updates sql server with new information
         std::ostringstream ss;
         ss << "UPDATE TABLE " << task->super->getName() << " SET people=\"" << people << "\" WHERE idd=" << task->id;
         queueQuery(ss.str());
     }
     
+    // Sets task field for a task
     void workspace::setTaskTask(task* task, const string& taskString) {
+        // Delete the old task string
         delete task->taskk;
         task->taskk = new string(taskString);
 
+        // Update server
         std::ostringstream ss;
         ss << "UPDATE TABLE " << task->super->getName() << "SET task=\"" << taskString << "\" WHERE idd=" << task->id;
         queueQuery(ss.str());
     }
     
+    // Creates a new task in a supertask
     task* workspace::createTask(supertask* super, status* status, const string& taskk, const string& people, const string& date) {
+        // Sets the tasks pos to be at the end of the list
         int pos = super->tasks->size();
+
+        // Starts with an ID of 0, finds the largest ID, and goes one higher
         int id = 0;
         for(const tasker::task* t : *super->tasks) if(*t->id > id) id = *t->id;
         id++;
+
+        // Creates the new task with the ID and position information
         tasker::task* newT = new tasker::task(super, status, taskk, date, people, pos, id);
+
+        // Push pointer to vector
         super->tasks->push_back(newT);
 
+        // Updates server with the change
         std::ostringstream ss;
         ss << "INSERT INTO task_" << super->getName() << " (task, status, people, date, pos, id) VALUES (\"" << newT->taskk <<
             "\", \"" << newT->statuss->name << "\", \"" << newT->people << "\", \"" << newT->date << "\", " << newT->pos << ", " << newT->id << ")";
         queueQuery(ss.str());
 
+        // Returns task for use by the UI
         return newT;
     }
 
+    // Deletes a task from a supertask
     void workspace::dropTask(task* task) {
+        // Get index of the task
         size_t index;
         for(index = 0; task->id != task->super->tasks->at(index)->id; index++); 
+
+        // Remove task from supertask vector
         task->super->tasks->erase(task->super->tasks->begin() + index);
+
+        // Update server
         std::ostringstream ss;
         ss << "DELETE FROM task_" << task->super->getName() << "WHERE idd=" << task->id;
         queueQuery(ss.str());
         delete task;
     }
 
+    // Returns const vector of all the available stati, so the UI can iterate over them
     const std::vector<status*>* workspace::getStati() {
         return stati;
     }
 
+    // Creates a new status
     status* workspace::createStatus(const string& name, const ImVec4& color) {
+        // Create the pointer
         status* newS = new status(name, color);
+
+        // Add pointer to vector of available stati
         stati->push_back(newS);
+
+        // Add new status to the stati table
         std::ostringstream ss;
         ss << "INSERT INTO stati (name, r, g, b) values (\"" << name << "\", " << (int) color.x << ", " << (int) color.y << ", " << (int) color.z << ")";
         queueQuery(ss.str());
+
+        // Return new status for use
         return newS;
     }
 
+    // Deletes status from the workspace
     void workspace::dropStatus(status* status) {
         size_t index;
         for(index = 0; status != stati->at(index); index++);
@@ -550,18 +626,26 @@ namespace tasker {
         delete status;
     }
 
+    // Changes status color
     void workspace::setStatusColor(status* status, const ImVec4& color) {
+        // Delete the old color and create the new one
         delete status->color;
         status->color = new ImVec4(color);
+
+        // Update server with new color
         std::ostringstream ss;
         ss << "UPDATE TABLE stati SET r=" << (int) color.x << ", g=" << (int) color.y << ", b=" << (int) color.z << " WHERE name=\"" << status->name << "\"";
         queueQuery(ss.str());
     }
 
+    // Change the name of a status
     void workspace::setStatusName(status* status, const string& name) {
+        // Update server first so the old name can be used in the query
         std::ostringstream ss;
         ss << "UPDATE TABLE stati SET name=\"" << name << "\" WHERE name=\"" << status->name << "\"";
         queueQuery(ss.str());
+
+        // Delete old name and create new one
         delete status->name;
         status->name = new string(name);
     }
