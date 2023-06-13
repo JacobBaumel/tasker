@@ -13,10 +13,13 @@ IMGUI_DIR = ../imgui
 #Root directory for small json library used to keep track of workspaces, found at https://github.com/davidmoreno/json11
 JSON11_DIR = ../json11
 
+#Optional variable if the mysql connector is in a nonstandard location
+MSQLC_DIR = ../mysqlcppconn
+
 CXX = g++
 
 #List of source files and directories relative to project root
-SOURCES = main.cpp common/jsonstuff.cpp display_windows.cpp common/db_functions.cpp
+SOURCES = main.cpp jsonstuff.cpp display_windows.cpp server_requests.cpp
 SOURCES += $(IMGUI_DIR)/imgui.cpp $(IMGUI_DIR)/imgui_demo.cpp $(IMGUI_DIR)/imgui_draw.cpp $(IMGUI_DIR)/imgui_tables.cpp $(IMGUI_DIR)/imgui_widgets.cpp
 SOURCES += $(IMGUI_DIR)/backends/imgui_impl_glfw.cpp $(IMGUI_DIR)/backends/imgui_impl_opengl3.cpp
 SOURCES += $(JSON11_DIR)/json11.cpp
@@ -29,6 +32,12 @@ INCLUDES = -I $(IMGUI_DIR) -I $(IMGUI_DIR)/backends -I ./includes -I $(JSON11_DI
 
 #Dynamic library files for the mysql connector, opengl, and glfw
 LIBS = -lmysqlcppconn -lGL -lglfw
+
+#Add mysqlcppconn include directory and lib directory if MSQLC_DIR is set
+ifneq ($(strip $(MSQLC_DIR)),)
+INCLUDES += -I $(MSQLC_DIR)/include/jdbc
+LIBS += -L $(MSQLC_DIR)/lib64
+endif
 
 #Explicitly defines c++11
 EXTRA_FLAGS = -std=c++11
@@ -47,9 +56,6 @@ endif
 #Second expansion necessary to use compile objects for targets, and corresponding sources for prereqs. Probably not the best way to go about it, but it works
 .SECONDEXPANSION:
 %.o: $$(notdir $$(basename $$@)).cpp dir
-	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
-
-%.o: common/$$(notdir $$(basename $$@)).cpp dir
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
 %.o: $(IMGUI_DIR)/$$(notdir $$(basename $$@)).cpp dir
