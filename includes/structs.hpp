@@ -1,5 +1,6 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
+#include "jsonstuff.h"
 #define MAX_STRING_LENGTH 256
 
 #include "imgui.h"
@@ -14,18 +15,27 @@
 using std::string;
 
 namespace tasker {
+    sql::Connection* getConnection(json_sql_connection& c);
+
     class StringTooLongException : public std::exception {
         public:
             const char* what();
     };
 
+    // code meanings:
+    // 0: nothing
+    // 1: cant connect
+    // 2: something doesnt exist
+    // 3: something already exists
+    // 4: null/empty value
     class TaskerException : public std::exception {
         private:
             const char* text;
 
         public:
             const char* what();
-            TaskerException(const char* message);
+            const int* code;
+            TaskerException(const char* message, const int& code);
     };
 
     template<typename T>
@@ -123,7 +133,7 @@ namespace tasker {
             void fullRefresh();
             void pushData();
             void create();
-            void connect();
+            void connect(const bool& pulldata);
 
             supertask* createCategory(const string& name, const ImVec4& color);
             void dropCategory(supertask* s);

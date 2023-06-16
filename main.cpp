@@ -14,8 +14,6 @@
 // Tasker includes
 #include "Colors.h"
 #include "jsonstuff.h"
-#include "display_windows.h"
-#include "server_queries.h"
 
 // These functions allow post and pre-rendering stuff to be done in multiple places, without needing a copy-paste
 void pre_rendering();

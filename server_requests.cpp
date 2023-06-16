@@ -5,6 +5,9 @@
 #include <cppconn/driver.h>
 #include <mutex>
 #include <sstream>
+#include <string>
+#include "cppconn/exception.h"
+#include "jsonstuff.h"
 #include "structs.hpp"
 
 // Defines for creating the StringTooLongException error message at compile time
@@ -16,6 +19,10 @@
 using std::string;
 
 namespace tasker {
+    sql::Connection* getConnection(json_sql_connection& c) {
+        return get_driver_instance()->connect("tcp://" + c.ip + ":" + std::to_string(c.port), c.username, c.password);
+    }
+
     // The following are methods for the mutex_resource class:
 
     // Constructor:
@@ -67,8 +74,9 @@ namespace tasker {
 
     // More general exception for other things besides string length
     // Constructor to allow for custom error message
-    TaskerException::TaskerException(const char* message) {
-        text = message;
+    TaskerException::TaskerException(const char* message, const int& _code) {
+        this->code = new int(_code);
+        this->text = message;
     }
 
     const char* TaskerException::what() {
@@ -183,10 +191,10 @@ namespace tasker {
     // Constructor
     workspace::workspace(sql::Connection* _connection, const string& _name) {
         // Constructor should be provided with an already opened connection, otherwise an error is thrown
-        if(_connection == nullptr || _connection->isClosed()) throw TaskerException("Connection cannot be null!");
+        if(_connection == nullptr || _connection->isClosed()) throw TaskerException("Connection cannot be null!", 1);
 
         // A workspace must have a name, even if it is not represented by a server yet (aka created)
-        if(_name.empty()) throw TaskerException("Name cannot be empty!");
+        if(_name.empty()) throw TaskerException("Name cannot be empty!", 4);
 
         // The connection is added to a mutex resource, to allow for threading
         connection = new mutex_resource<sql::Connection>(_connection, false);
@@ -373,7 +381,7 @@ namespace tasker {
         if(r->rowsCount() > 0) {
             delete stmt;
             delete r;
-            throw TaskerException("Workspace already exists!");
+            throw TaskerException("Workspace already exists!", 3);
         }
 
         // Create the database, set the connection schema, and refresh the statement
@@ -391,7 +399,7 @@ namespace tasker {
     }
 
     // Method to change the connection schema and download data if the workspace is already created
-    void workspace::connect() {
+    void workspace::connect(const bool& pulldata) {
         // Detect if database already exists
         sql::Statement* stmt = connection->access()->createStatement();
         connection->release();
@@ -399,8 +407,9 @@ namespace tasker {
         int count = r->rowsCount();
         delete stmt;
         delete r;
-        if(count == 0) throw TaskerException("Workspace supplied does not already exist!!");
-        
+        if(count == 0) throw TaskerException("Workspace supplied does not already exist!!", 2);
+
+        if(!pulldata) return;
 
         // // Set new schema and full refresh the local workspace
         connection->access()->setSchema(name);
@@ -411,7 +420,7 @@ namespace tasker {
     // Creates a new category based on the name and color provided
     supertask* workspace::createCategory(const string& name, const ImVec4& color) {
         // Search through existing supertasks and make sure that the name does not already exist
-        for(supertask* t : *tasks) if(*t->display_name == name) throw TaskerException("Supertask already exists!");
+        for(supertask* t : *tasks) if(*t->display_name == name) throw TaskerException("Supertask already exists!", 2);
 
         // Create the supertask and add it to the list of workspace supertasks
         supertask* t = new supertask(color, name);
@@ -478,7 +487,7 @@ namespace tasker {
         // Ensure the supertask exists before proceeding
         int index = -1;
         for(size_t i = 0; i < tasks->size(); i++) if(tasks->at(i) == t) index = i;
-        if(index == -1) throw TaskerException("Supertask doesn't exist!");
+        if(index == -1) throw TaskerException("Supertask doesn't exist!", 2);
 
         // Delete the supertask from the list
         tasks->erase(tasks->begin() + index);
@@ -698,7 +707,7 @@ namespace tasker {
         for(status* s : *stati) if(*s->name == text) {
             return s;
         }
-        throw TaskerException("Status does not exist!!");
+        throw TaskerException("Status does not exist!!", 1);
     }
 
 #ifdef TASKER_DEBUG
