@@ -1,3 +1,4 @@
+
 #Can either be DEBUG or PRODUCTION, applying debug symbols or optimizations, respectively
 MODE = DEBUG
 
@@ -6,6 +7,7 @@ EXE = test.out
 
 #What folder to output .o files. Folder must exist prior to running makefile
 BUILD_DIR = build
+BUILD_DIR_CMD = @mkdir -p $(BUILD_DIR)
 
 #Root directory of the Dear Imgui git repository. Found at https://github.com/ocornut/imgui
 IMGUI_DIR = ../imgui
@@ -55,22 +57,26 @@ endif
 .PHONY: all
 #Second expansion necessary to use compile objects for targets, and corresponding sources for prereqs. Probably not the best way to go about it, but it works
 .SECONDEXPANSION:
-%.o: $$(notdir $$(basename $$@)).cpp dir
+%.o: $$(notdir $$(basename $$@)).cpp
+	$(BUILD_DIR_CMD)
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-%.o: $(IMGUI_DIR)/$$(notdir $$(basename $$@)).cpp dir
+%.o: $(IMGUI_DIR)/$$(notdir $$(basename $$@)).cpp
+	$(BUILD_DIR_CMD)
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-%.o: $(IMGUI_DIR)/backends/$$(notdir $$(basename $$@)).cpp dir
+%.o: $(IMGUI_DIR)/backends/$$(notdir $$(basename $$@)).cpp
+	$(BUILD_DIR_CMD)
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-%.o: $(JSON11_DIR)/$$(notdir $$(basename $$@)).cpp dir
+%.o: $(JSON11_DIR)/$$(notdir $$(basename $$@)).cpp
+	$(BUILD_DIR_CMD)
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
-all: $(EXE) dir
+all: $(EXE)
 	@echo Build Complete! && ./$(EXE)
 
-$(EXE): $(COMPILE_OBJECTS) dir
+$(EXE): $(COMPILE_OBJECTS)
 	$(CXX) $(COMPILE_OBJECTS) $(LIBS) $(EXTRA_FLAGS) -o $(EXE)
 
 
@@ -81,6 +87,3 @@ clean:
 # config.json is a file used by tasker during runtime. Clean this too
 fullclean: clean
 	rm -r $(BUILD_DIR) && rm config.json
-
-dir:
-	@if [ ! -d "$(BUILD_DIR)" ]; then mkdir $(BUILD_DIR); fi
