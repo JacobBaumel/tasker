@@ -1,8 +1,6 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
 #include "jsonstuff.h"
-#define MAX_STRING_LENGTH 256
-
 #include "imgui.h"
 #include <cppconn/connection.h>
 #include <string>
@@ -11,6 +9,8 @@
 #include <queue>
 #include <thread>
 #include <string>
+
+#define MAX_STRING_LENGTH 256
 
 using std::string;
 
@@ -63,8 +63,8 @@ namespace tasker {
             ~status();
 
         public:
-            const ImVec4* getColor();
-            const char* getName();
+            const ImVec4* getColor() const;
+            const char* getName() const;
     };
 
     class supertask;
@@ -85,10 +85,15 @@ namespace tasker {
             ~task();
 
         public:
-            const status* getStatus();
-            const char* getTask();
-            const char* getDate();
-            const char* getPeople();
+            const status* getStatus() const;
+            const char* getTask() const;
+            const char* getDate() const;
+            const char* getPeople() const;
+
+            char task_write_buf[MAX_STRING_LENGTH];
+            char people_write_buf[MAX_STRING_LENGTH];
+            char date_write_buf[MAX_STRING_LENGTH];
+            bool wasSelected = false;
     };
 
     class supertask {
@@ -104,10 +109,16 @@ namespace tasker {
             ~supertask();
 
         public:
-            const ImVec4* getColor();
-            const char* getName();
-            const char* getDisplay();
-            const std::vector<task*>* getTasks();
+            const ImVec4* getColor() const;
+            const char* getName() const;
+            const char* getDisplay() const;
+            const std::vector<task*>* getTasks() const;
+
+            bool collapsed = false;
+            char task_write_buf[MAX_STRING_LENGTH];
+            char people_write_buf[MAX_STRING_LENGTH];
+            char date_write_buf[MAX_STRING_LENGTH];
+            status* new_status;
     };
 
     class workspace {
@@ -134,27 +145,28 @@ namespace tasker {
             void pushData();
             void create();
             void connect(const bool& pulldata);
+            const char* getName() const;
 
             supertask* createCategory(const string& name, const ImVec4& color);
             void dropCategory(supertask* s);
             void setCategoryColor(supertask* s, const ImVec4& color);
             void setCategoryName(supertask* s, const string& name);
-            const std::vector<supertask*>* getSupers();
+            const std::vector<supertask*>* getSupers() const;
 
             void setTaskStatus(task* task, status* status);
             void setTaskDate(task* task, const string& date);
             void setTaskPeople(task* task, const string& date);
             void setTaskTask(task* task, const string& people);
-            task* createTask(supertask* super, status* status, const string& task, const string& people, const string& date);
+            task* createTask(supertask* super);
             void dropTask(task* task);
 
-            const std::vector<status*>* getStati();
+            const std::vector<status*>* getStati() const;
             status* createStatus(const string& name, const ImVec4& color);
             void dropStatus(status* statuss);
             void setStatusColor(status* status, const ImVec4& color);
             void setStatusName(status* status, const string& name);
 
-            status* getStatusFromString(const string&);
+            status* getStatusFromString(const string&) const;
 #ifdef TASKER_DEBUG
             string toString();
 #endif

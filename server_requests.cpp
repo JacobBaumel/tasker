@@ -93,11 +93,11 @@ namespace tasker {
         delete color;
     }
 
-    const ImVec4* status::getColor() {
+    const ImVec4* status::getColor() const {
         return color;
     }
 
-    const char* status::getName() {
+    const char* status::getName() const {
         return name->c_str();
     }
 
@@ -123,19 +123,19 @@ namespace tasker {
         delete id;
     }
 
-    const status* task::getStatus() {
+    const status* task::getStatus() const {
         return statuss;
     }
 
-    const char* task::getTask() {
+    const char* task::getTask() const {
         return taskk->c_str();
     }
 
-    const char* task::getDate() {
+    const char* task::getDate() const {
         return date->c_str();
     }
 
-    const char* task::getPeople() {
+    const char* task::getPeople() const {
         return people->c_str();
     }
 
@@ -170,19 +170,19 @@ namespace tasker {
         delete display_name;
     }
 
-    const ImVec4* supertask::getColor() {
+    const ImVec4* supertask::getColor() const {
         return color;
     }
 
-    const char* supertask::getName() {
+    const char* supertask::getName() const {
         return name->c_str();
     }
 
-    const char* supertask::getDisplay() {
+    const char* supertask::getDisplay() const {
         return display_name->c_str();
     }
 
-    const std::vector<task*>* supertask::getTasks() {
+    const std::vector<task*>* supertask::getTasks() const {
         return tasks;
     }
 
@@ -417,6 +417,10 @@ namespace tasker {
         fullRefresh();
     }
 
+    const char* workspace::getName() const {
+        return name.c_str();
+    }
+
     // Creates a new category based on the name and color provided
     supertask* workspace::createCategory(const string& name, const ImVec4& color) {
         // Search through existing supertasks and make sure that the name does not already exist
@@ -508,7 +512,7 @@ namespace tasker {
 
     // Returns a const vector of all the known supertasks, so the UI can iterate over them and access them.
     // The UI does still have to use the setter methods provided by the workspace object
-    const std::vector<supertask*>* workspace::getSupers() {
+    const std::vector<supertask*>* workspace::getSupers() const {
         return tasks;
     }
 
@@ -561,7 +565,7 @@ namespace tasker {
     }
     
     // Creates a new task in a supertask
-    task* workspace::createTask(supertask* super, status* status, const string& taskk, const string& people, const string& date) {
+    task* workspace::createTask(supertask* super) {
         // Sets the tasks pos to be at the end of the list
         int pos = super->tasks->size();
 
@@ -571,7 +575,8 @@ namespace tasker {
         id++;
 
         // Creates the new task with the ID and position information
-        tasker::task* newT = new tasker::task(super, status, taskk, date, people, pos, id);
+        tasker::task* newT = new tasker::task(super, super->new_status, 
+                super->task_write_buf, super->date_write_buf, super->people_write_buf, pos, id);
 
         // Push pointer to vector
         super->tasks->push_back(newT);
@@ -603,7 +608,7 @@ namespace tasker {
     }
 
     // Returns const vector of all the available stati, so the UI can iterate over them
-    const std::vector<status*>* workspace::getStati() {
+    const std::vector<status*>* workspace::getStati() const {
         return stati;
     }
 
@@ -703,7 +708,7 @@ namespace tasker {
     }
 
     // Helper method to get a status pointer from its name
-    status* workspace::getStatusFromString(const string& text) {
+    status* workspace::getStatusFromString(const string& text) const {
         for(status* s : *stati) if(*s->name == text) {
             return s;
         }

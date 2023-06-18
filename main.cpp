@@ -14,6 +14,8 @@
 // Tasker includes
 #include "Colors.h"
 #include "jsonstuff.h"
+#include "structs.hpp"
+#include "display_windows.h"
 
 // These functions allow post and pre-rendering stuff to be done in multiple places, without needing a copy-paste
 void pre_rendering();
@@ -102,7 +104,8 @@ int main() {
                 refresh = true;
 
                 // Persistent workspace during workspace stage
-                tasker::workspace config("");
+                tasker::workspace_statics statics;
+                tasker::workspace w(getConnection(connection.connection), connection.schema);
 
                 // Timer for refresh text
                 time_t timer;
@@ -110,7 +113,7 @@ int main() {
                     pre_rendering();
                     int latestId = 0;
                     
-                    display_workspace(connection, stage, latestId, refresh, config, timer);
+                    display_workspace(stage, latestId, refresh, w, timer, statics);
                     post_rendering(window);
                 }
                 break;

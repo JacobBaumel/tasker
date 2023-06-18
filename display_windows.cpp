@@ -2,16 +2,27 @@
 #include "display_windows.h"
 #include <cppconn/connection.h>
 #include <cppconn/driver.h>
+#include <string>
 #include "Colors.h"
 #include "cppconn/exception.h"
 #include "imgui.h"
 #include "jsonstuff.h"
 #include "ctime"
 #include "structs.hpp"
+using std::string;
 
 // Helper for slightly adjusting the alpha of an ImVec4 object, so it can be done inline
-ImVec4 alphaShift(ImVec4 in, float alpha) {
+ImVec4 alphaShift(const ImVec4& in, float alpha) {
     return ImVec4(in.x, in.y, in.z, alpha);
+}
+
+constexpr ImVec4 operator*(const ImVec4& im, const float& val) {
+    return ImVec4(im.x * val, im.y * val, im.z * val, im.w);
+}
+
+long abs(long l) {
+    if(l < 0) return l * -1;
+    return l;
 }
 
 // Function solely for drawing the add screen, called by the master display_workspace_selection function
@@ -338,14 +349,14 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
             ImGui::PushID(latestId++);
             ImGui::SetCursorPos(ImVec2(posX, posY));
             // Size is offsetted so it does not interfere with the delete button
-            picked = ImGui::InvisibleButton("##picked" + latestId, ImVec2(size.x - 25, size.y));
+            picked = ImGui::InvisibleButton(string("##picked").append(std::to_string(latestId)).c_str(), ImVec2(size.x - 25, size.y));
             ImGui::PopID();
             bool selected = ImGui::IsItemHovered();
 
             // This creates the rest of the button below the delete
             ImGui::PushID(latestId++);
             ImGui::SetCursorPos(ImVec2(posX + size.x - 25, posY + 20));
-            picked = picked || ImGui::InvisibleButton("##picked" + latestId, ImVec2(25, size.y - 20));
+            picked = picked || ImGui::InvisibleButton(string("##picked").append(std::to_string(latestId)).c_str(), ImVec2(25, size.y - 20));
             ImGui::PopID();
             selected = selected || ImGui::IsItemHovered();
 
@@ -414,17 +425,14 @@ void display_worskapce_selection(tasker::json_database& connection, tasker::Disp
     }
 }
 
-void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema, bool& refresh);
-void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_size, bool& refresh);
-void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::status*>& stati, int& latestId, tasker::workspace& workspace, float* colors);
+void draw_supertask(tasker::supertask* task, int& y, int& latestId, tasker::workspace& w, bool& refresh);
+void create_new(tasker::workspace& w, bool& create_cat, float* colors, char* buffer, bool& refresh);
+void manage_statuses(bool& manage_statuses, bool& refresh, tasker::workspace& w, int& latestId, char* buffer, float* colors);
 
-void display_workspace(tasker::json_database& database, tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& config, time_t& timer) {
+void display_workspace(tasker::DisplayWindowStage& stage, int& latestId, bool& refresh, tasker::workspace& w, time_t& timer, tasker::workspace_statics& statics) {
     // Grab new data if a refresh is needed
     if(refresh) {
-        tasker::set_connection(database.connection);
-        tasker::set_schema(database.schema);
-        if(tasker::get_data(config) == tasker::return_code::Error) std::cout << "Error getting data from workspace!!" << std::endl;
-        //print_workspace(config);
+        w.fullRefresh();
     }
 
     // Set next drawn window to be fullscreen
@@ -432,23 +440,23 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
     ImGui::SetNextWindowSize(ImGui::GetMainViewport()->Size);
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->Pos);
     bool open = true;
-    if (ImGui::Begin(database.schema.c_str(), &open, flags)) {
+    if (ImGui::Begin(w.getName(), &open, flags)) {
         // The y offset to begin drawing tables / categories
         int y = 100 - ImGui::GetScrollY();
 
         // The drawing of buttons to create/manage categories, statuses, or to refresh the screen
         ImGui::SetCursorPos(ImVec2(50, 50));
-        if(ImGui::Button("New Category", ImVec2(150, 25)) || config.create_cat) {
+        if(ImGui::Button("New Category", ImVec2(150, 25)) || statics.create_cat) {
             // If going into the screen for the first time, fill the persistent text field with \0
-            if(!config.create_cat) std::fill(config.new_category, config.new_category + 255, '\0');
-            config.create_cat = true;
-            create_new(config.create_cat, config.new_color, config.new_category, IM_ARRAYSIZE(config.new_category), refresh);
+            if(!statics.create_cat) std::fill(statics.new_category, statics.new_category + (MAX_STRING_LENGTH - 1), '\0');
+            statics.create_cat = true;
+            create_new(w, statics.create_cat, statics.new_color, statics.new_category, refresh);
         }
         ImGui::SameLine();
-        if(ImGui::Button("Manage Statuses", ImVec2(150, 25)) || config.manage_statuses) {
-            if(!config.manage_statuses) std::fill(config.new_category, config.new_category + 255, '\0');
-            config.manage_statuses = true;
-            manage_statuses(config.manage_statuses, refresh, config.stati, latestId, config, config.new_color);
+        if(ImGui::Button("Manage Statuses", ImVec2(150, 25)) || statics.manage_statuses) {
+            if(!statics.manage_statuses) std::fill(statics.new_category, statics.new_category + (MAX_STRING_LENGTH - 1), '\0');
+            statics.manage_statuses = true;
+            manage_statuses(statics.manage_statuses, refresh, w, latestId, statics.new_category, statics.new_color);
         }
         ImGui::SameLine();
         if(ImGui::Button("Refresh", ImVec2(100, 25))) {
@@ -467,7 +475,8 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
         }
 
         // Iterate through all supertasks and draw them
-        for(tasker::supertask* s : config.tasks) draw_supertask(s, y, latestId, config.stati, &database.schema[0], refresh);
+        for(tasker::supertask* s : *w.getSupers()) 
+            draw_supertask(s, y, latestId, w, refresh);
 
         // Expand the scrollable area of the window
         ImGui::Dummy(ImVec2(0, y + 10));
@@ -482,29 +491,29 @@ void display_workspace(tasker::json_database& database, tasker::DisplayWindowSta
 }
 
 // Big chonky function, does the majority of the heavy lifting for the whole application
-void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<tasker::status*>& stati, const char* schema, bool& refresh) {
-    // Variables needed for color styling and text
-    constexpr int color_shift = 1.5;
+void draw_supertask(tasker::supertask* task, int& y, int& latestId, tasker::workspace& w, bool& refresh) {    // Variables needed for color styling and text
+    constexpr double color_shift = 1.5;
     const float scroll = ImGui::GetScrollY();
-    const bool isDark = ((task->color.Value.x + task->color.Value.y + task->color.Value.z) / 3) < 0.33;
+    const bool isDark = ((task->getColor()->x + task->getColor()->y + task->getColor()->z) / 3) < 0.33;
     const ImColor main_color = isDark ? ImColor(ImVec4(1, 1, 1, 1)) : ImColor(ImVec4(0, 0, 0, 1));
     const ImColor accent = isDark ? ImColor(ImVec4(0, 0, 0, 1)) : ImColor(ImVec4(1, 1, 1, 1));
 
     ImDrawList* draw = ImGui::GetWindowDrawList();
 
     // Sets the color of text fields, and of text to their main color (either black or white), and the main color of the supertask
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, alphaShift(task->color.Value, 0.25));
+    ImGui::PushStyleColor(ImGuiCol_FrameBg, alphaShift(*task->getColor(), 0.25));
     ImGui::PushStyleColor(ImGuiCol_Text, main_color.Value);
 
     // If the overall supertask color is dark, draw a white outline to separate it from the background
     if(isDark) draw->AddRectFilled(ImVec2(48, y - 2), ImVec2(ImGui::GetWindowSize().x - 48, y + 37), ImColor(ImVec4(1, 1, 1, 1)), 5);
 
     // Draw the actual supertask banner
-    draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(ImGui::GetWindowSize().x - 50, y + 35 - ImGui::GetScrollY()), task->color, 5);
+    draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(ImGui::GetWindowSize().x - 50, y + 35 - ImGui::GetScrollY()), 
+            ImGui::GetColorU32(*task->getColor()), 5);
 
     // Draw supertask label/text
     ImGui::SetCursorPos(ImVec2(75, y + 7));
-    ImGui::TextUnformatted(task->display_name);
+    ImGui::TextUnformatted(task->getName());
 
     // Pop previous text color, and set it to white
     ImGui::PopStyleColor();
@@ -518,14 +527,10 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
     ImGui::PopID();
 
     // Draw delete button
-    draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 10 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 25 - scroll), (hovered ? ImGui::GetColorU32(accent.Value) : ImGui::GetColorU32(main_color.Value)), 1.5);
-    draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 25 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 10 - scroll), (hovered ? ImGui::GetColorU32(accent.Value) : ImGui::GetColorU32(main_color.Value)), 1.5);
-
-    // If the delete was pushed, remove the supertask from the mysql server, and initiate refresh. Still render the rest of the supertask for this frame, to avoid short-circuiting any pushed styles and windows
-    if(pushedd) {
-        tasker::drop_category(task->name);
-        refresh = true;
-    }
+    draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 10 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 25 - scroll), 
+            (hovered ? ImGui::GetColorU32(accent.Value) : ImGui::GetColorU32(main_color.Value)), 1.5);
+    draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 25 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 10 - scroll), 
+            (hovered ? ImGui::GetColorU32(accent.Value) : ImGui::GetColorU32(main_color.Value)), 1.5);
 
     // Draw collapse arrow, in proper orientation according to the state of if it is collapsed
     if(!task->collapsed) draw->AddTriangleFilled(ImVec2(55, y + 15 - scroll), ImVec2(62.5, y + 25 - scroll), ImVec2(70, y + 15 - scroll), main_color);
@@ -533,7 +538,7 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
 
     // Create button for collapsing task
     ImGui::SetCursorPos(ImVec2(55, y + 10));
-    bool pushed = ImGui::InvisibleButton(std::string("##task_opening_").append(task->name).c_str(), ImVec2(15, 15));
+    bool pushed = ImGui::InvisibleButton(std::string("##task_opening_").append(task->getName()).c_str(), ImVec2(15, 15));
 
     // If the collapse arrow is hovered, create darkened circle around it to indicate it is hovered
     if(ImGui::IsItemHovered()) draw->AddCircleFilled(ImVec2(62.5, y + 17.5 - scroll), 9, ImColor(ImVec4(0.5, 0.5, 0.5, 0.5)));
@@ -544,11 +549,11 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
         y += 40;
 
         // Iterate through all tasks in supertask
-        for(tasker::task* t : task->tasks) {
+        for(tasker::task* t : *task->getTasks()) {
 
             // Draw the main body of the task, and decorative rectangle on the left side
             draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(ImGui::GetWindowSize().x - 50, y + 35 - ImGui::GetScrollY()), ImColor(ImVec4(0.25, 0.25, 0.25, 1)), 5);
-            draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(55, y + 35 - ImGui::GetScrollY()), task->color);
+            draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(55, y + 35 - ImGui::GetScrollY()), ImGui::GetColorU32(*task->getColor()));
 
             // Boolean to detect if any changes have been made to a task, and update server if any have been detected
             bool changed = false;
@@ -556,23 +561,34 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
             // Draw main body of task, and detect if it has been selected for updating
             ImGui::SetCursorPos(ImVec2(60, y + 3));
             ImGui::PushItemWidth((ImGui::GetWindowSize().x - 120) / 2);
-            changed = changed || ImGui::InputText(std::string("##task_input_").append(std::to_string(latestId++)).c_str(), &t->taskk[0], IM_ARRAYSIZE(t->taskk), ImGuiInputTextFlags_EnterReturnsTrue);
-            changed = changed || ImGui::IsItemActive();
+            bool taskChanged = ImGui::InputText(std::string("##task_input_").append(std::to_string(latestId++)).c_str(), 
+                    &t->task_write_buf[0], MAX_STRING_LENGTH, ImGuiInputTextFlags_EnterReturnsTrue);
+            if(taskChanged || ImGui::IsItemActive()) {
+                w.setTaskTask(t, t->task_write_buf);
+                changed = true;
+            }
             ImGui::PopItemWidth();
 
             // Draw text field for people, and detect any changes
             ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 125) / 2) + 70), y + 3));
             ImGui::PushItemWidth((ImGui::GetWindowSize().x - 100) / 3);
-            bool isTyping = ImGui::InputText(std::string("##task_people_").append(std::to_string(latestId++)).c_str(), &t->people[0], IM_ARRAYSIZE(t->people), ImGuiInputTextFlags_EnterReturnsTrue);
+            bool peopleChanged = ImGui::InputText(std::string("##task_people_").append(std::to_string(latestId++)).c_str(), 
+                    &t->people_write_buf[0], MAX_STRING_LENGTH, ImGuiInputTextFlags_EnterReturnsTrue);
+            if(peopleChanged || ImGui::IsItemActive()) {
+                w.setTaskPeople(t, t->people_write_buf);
+                changed = true;
+            }
             ImGui::PopItemWidth();
-            changed = changed || ImGui::IsItemActive() || isTyping; // Honestly no idea, but separating (just this last one) into a separate bool fixed a weird rendering issue where if the main body was selected, this text field would not render
 
             // Drawing block for selecting status
             // Temporarily set the color to whatever the selected status is
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, t->statuss->color.Value);
+            ImGui::PushStyleColor(ImGuiCol_FrameBg, *t->getStatus()->getColor());
 
             // Set the hovered color to slightly lighter than the non-hovered color for user feedback
-            ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(t->statuss->color.Value.x * color_shift, t->statuss->color.Value.y * color_shift, t->statuss->color.Value.z * color_shift, 0.8));
+            {
+                ImVec4 col = *t->getStatus()->getColor();
+                ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, alphaShift((col * color_shift), 0.8));
+            }
 
             // Begin drawing of the actual combo
             ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 120) * (5.0 / 6.0)) + 80), y + 3));
@@ -580,17 +596,17 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
 
             // Seperate changed flag for the combo
             bool edited = false;
-            if(ImGui::BeginCombo(std::string("##status_selector_").append(std::to_string(latestId++)).c_str(), &t->statuss->name[0], ImGuiComboFlags_NoArrowButton)) {
+            if(ImGui::BeginCombo(std::string("##status_selector_").append(std::to_string(latestId++)).c_str(), t->getStatus()->getName(), ImGuiComboFlags_NoArrowButton)) {
                 bool first = true;
-                for(int i = 0; i < stati.size(); i++) {
-                    bool selected = t->statuss == stati.at(i);
+                for(size_t i = 0; i < w.getStati()->size(); i++) {
+                    bool selected = t->getStatus() == w.getStati()->at(i);
 
                     // Use buttons inside the combo to achieve solid color, selectable object that will immediately close the combo
-                    ImGui::PushStyleColor(ImGuiCol_Button, alphaShift(stati.at(i)->color.Value, (selected ? 0.9 : 0.8)));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, alphaShift(stati.at(i)->color.Value, 0.95));
-                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, alphaShift(stati.at(i)->color.Value, 1));
-                    if(ImGui::Button(&stati.at(i)->name[0], ImVec2(ImGui::GetItemRectMax().x - ImGui::GetItemRectMin().x - (first ? 10 : 0), 0))) {
-                        t->statuss = stati.at(i);
+                    ImGui::PushStyleColor(ImGuiCol_Button, alphaShift(*w.getStati()->at(i)->getColor(), (selected ? 0.9 : 0.8)));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, alphaShift(*w.getStati()->at(i)->getColor(), 0.95));
+                    ImGui::PushStyleColor(ImGuiCol_ButtonActive, alphaShift(*w.getStati()->at(i)->getColor(), 1));
+                    if(ImGui::Button(w.getStati()->at(i)->getName(), ImVec2(ImGui::GetItemRectMax().x - ImGui::GetItemRectMin().x - (first ? 10 : 0), 0))) {
+                        w.setTaskStatus(t, w.getStati()->at(i));
                         edited = true;
                     }
                     if(first) first = false;
@@ -610,61 +626,60 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
             draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 10 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 25 - scroll), (toDeleteHovered ? ImGui::GetColorU32(ImVec4(1, 1, 1, 1)): ImGui::GetColorU32(ImVec4(0, 0, 0, 1))), 1.5);
             draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 75, y + 25 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 10 - scroll), (toDeleteHovered ? ImGui::GetColorU32(ImVec4(1, 1, 1, 1)): ImGui::GetColorU32(ImVec4(0, 0, 0, 1))), 1.5);
 
-            if(toDelete) {
-                tasker::delete_task(t->id, task->name);
-                refresh = true;
-            }
+            
 
             // OR the text fields and combo to see total change count
             changed = changed || edited;
 
             // This schema is so imgui can focus on the window and close the combo, not for updating mysql
-            if(edited) ImGui::SetWindowFocus(schema);
+            if(edited) ImGui::SetWindowFocus(w.getName());
 
             // If a change is detected, update mysql server
-            if(t->wasSelected && !changed) tasker::update_task(task->name, t);
             t->wasSelected = changed;
             ImGui::PopStyleColor();
             ImGui::PopStyleColor();
 
+            if(toDelete) {
+                w.dropTask(t);
+                refresh = true;
+            }
 
             y += 40;
         }
 
         // All of this is a copy - paste of the above code, to draw an additional task for adding a new task
         ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1, 1, 1, 1));
-        ImGui::PushStyleColor(ImGuiCol_Button, task->color.Value);
+        ImGui::PushStyleColor(ImGuiCol_Button, *task->getColor());
         ImGui::PushStyleColor(ImGuiCol_ButtonHovered, alphaShift(main_color.Value, 0.1));
         draw->AddRectFilled(ImVec2(50, y - ImGui::GetScrollY()), ImVec2(ImGui::GetWindowSize().x - 50, y + 35 - ImGui::GetScrollY()), ImColor(ImVec4(0.25, 0.25, 0.25, 1)), 5);
 
         ImGui::SetCursorPos(ImVec2(60, y + 3));
         ImGui::PushItemWidth((ImGui::GetWindowSize().x - 120) / 2);
-        ImGui::InputText(std::string("##task_input_").append(std::to_string(latestId++)).c_str(), &task->newTask->taskk[0], IM_ARRAYSIZE(task->newTask->taskk), ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::InputText(std::string("##task_input_").append(std::to_string(latestId++)).c_str(), task->task_write_buf, MAX_STRING_LENGTH, ImGuiInputTextFlags_EnterReturnsTrue);
         ImGui::IsItemActive();
         ImGui::PopItemWidth();
 
         ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 125) / 2) + 70), y + 3));
         ImGui::PushItemWidth((ImGui::GetWindowSize().x - 100) / 3);
-        ImGui::InputText(std::string("##task_people_").append(std::to_string(latestId++)).c_str(), &task->newTask->people[0], IM_ARRAYSIZE(task->newTask->people), ImGuiInputTextFlags_EnterReturnsTrue);
+        ImGui::InputText(std::string("##task_people_").append(std::to_string(latestId++)).c_str(), task->people_write_buf, MAX_STRING_LENGTH, ImGuiInputTextFlags_EnterReturnsTrue);
         ImGui::PopItemWidth();
 
-        ImVec4 taskColor = (task->newTask->statuss == nullptr ? ImVec4(0, 0, 0, 1) : task->newTask->statuss->color.Value);
+        ImVec4 taskColor = (task->new_status == nullptr ? ImVec4(0, 0, 0, 1) : *task->new_status->getColor());
         ImGui::PushStyleColor(ImGuiCol_FrameBg, taskColor);
-        int color_shift = 1.5;
-        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(taskColor.x * color_shift, taskColor.y * color_shift, taskColor.z * color_shift, 0.8));
+        float color_shift = 1.5f;
+        ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, alphaShift(taskColor * color_shift, 0.8));
         ImGui::SetCursorPos(ImVec2((((ImGui::GetWindowSize().x - 120) * (5.0 / 6.0)) + 80), y + 3));
         ImGui::PushItemWidth(((ImGui::GetWindowSize().x - 100) / 6) - 50);
-        bool edited = false;
-        if(ImGui::BeginCombo(std::string("##status_selector_").append(std::to_string(latestId++)).c_str(), (task->newTask->statuss == nullptr ? "None" : &task->newTask->statuss->name[0]), ImGuiComboFlags_NoArrowButton)) {
+        if(ImGui::BeginCombo(std::string("##status_selector_").append(std::to_string(latestId++)).c_str(), (task->new_status == nullptr ? 
+                        "None" : task->new_status->getName()), ImGuiComboFlags_NoArrowButton)) {
             bool first = true;
-            for(int i = 0; i < stati.size(); i++) {
-                bool selected = (task->newTask->statuss == nullptr ? "None" : task->newTask->statuss->name) == stati[i]->name;
-                ImGui::PushStyleColor(ImGuiCol_Button, alphaShift(stati.at(i)->color.Value, (selected ? 0.9 : 0.8)));
-                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, alphaShift(stati.at(i)->color.Value, 0.95));
-                ImGui::PushStyleColor(ImGuiCol_ButtonActive, alphaShift(stati.at(i)->color.Value, 1));
-                if(ImGui::Button(&stati.at(i)->name[0], ImVec2(ImGui::GetItemRectMax().x - ImGui::GetItemRectMin().x - (first ? 10 : 0), 0))) {
-                    task->newTask->statuss = stati.at(i);
-                    edited = true;
+            for(size_t i = 0; i < w.getStati()->size(); i++) {
+                bool selected = (task->new_status == nullptr ? w.getStatusFromString("None") : task->new_status) == w.getStati()->at(i);
+                ImGui::PushStyleColor(ImGuiCol_Button, alphaShift(*w.getStati()->at(i)->getColor(), (selected ? 0.9 : 0.8)));
+                ImGui::PushStyleColor(ImGuiCol_ButtonHovered, alphaShift(*w.getStati()->at(i)->getColor(), 0.95));
+                ImGui::PushStyleColor(ImGuiCol_ButtonActive, alphaShift(*w.getStati()->at(i)->getColor(), 1));
+                if(ImGui::Button(w.getStati()->at(i)->getName(), ImVec2(ImGui::GetItemRectMax().x - ImGui::GetItemRectMin().x - (first ? 10 : 0), 0))) {
+                    task->new_status = w.getStati()->at(i);
                 }
                 if(first) first = false;
                 ImGui::PopStyleColor();
@@ -682,7 +697,7 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
         draw->AddLine(ImVec2(ImGui::GetWindowSize().x - 70, y + 27 - scroll), ImVec2(ImGui::GetWindowSize().x - 60, y + 5 - scroll), ImGui::GetColorU32(!hovered ? ImVec4(0, 0, 0, 1) : ImVec4(1, 1, 1, 1)), 2.0f);
 
         if(selected) {
-            tasker::create_task(task->newTask, task->name);
+            w.createTask(task);
             refresh = true;
         }
         ImGui::PopStyleColor(5);
@@ -695,10 +710,16 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, std::vector<
     // Pop remaining styles, and incrememnt y for the next supertask
     ImGui::PopStyleColor(2);
     y += 75;
+
+    // If the delete was pushed, remove the supertask from the mysql server, and initiate refresh 
+    if(pushedd) {
+        w.dropCategory(task);
+        refresh = true;
+    }
 }
 
 // Screen for creating a new supertask
-void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_size, bool& refresh) {
+void create_new(tasker::workspace& w, bool& create_cat, float* colors, char* buffer, bool& refresh) {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
     ImGui::SetNextWindowSize(ImVec2(500, 500));
     ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -710,7 +731,7 @@ void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_s
         ImGui::TextUnformatted("Category name: ");
         ImGui::SameLine();
         // Text input for supertask name
-        ImGui::InputText("##new_cat_name", buffer, buff_size);
+        ImGui::InputText("##new_cat_name", buffer, MAX_STRING_LENGTH);
 
         // Draw an "ok" button to create task when ready
         bool create;
@@ -720,7 +741,7 @@ void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_s
 
         // If the button is pushed, actually create the task, update server, and initiate refresh
         if(create) {
-            tasker::create_category(buffer, colors);
+            w.createCategory(buffer, ImVec4(colors[0], colors[1], colors[2], 1.0f));
             refresh = true;
             create_cat = false;
         }
@@ -731,7 +752,7 @@ void create_new(bool& create_cat, float* colors, char* buffer, const int& buff_s
     }
 }
 
-void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::status*>& stati, int& latestId, tasker::workspace& workspace, float* colors) {
+void manage_statuses(bool& manage_statuses, bool& refresh, tasker::workspace& w, int& latestId, char* buffer, float* colors) {
     ImGuiWindowFlags flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
     ImGui::SetNextWindowSize(ImVec2(500, 500));
     ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -739,14 +760,14 @@ void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::s
 
     if(ImGui::Begin("Mange Statuses", &manage_statuses, flags)) {
         // Iterate through all statuses to display them
-        for(tasker::status* s : stati) {
-            if(std::string(s->name) == "None") continue;
+        for(tasker::status* s : *w.getStati()) {
+            if(s->getName() == string("None")) continue;
             // Display solid color button for the status name, easier than using basic level drawing api
             ImGui::SetCursorPosX(45);
-            ImGui::PushStyleColor(ImGuiCol_Button, s->color.Value);
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, s->color.Value);
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, s->color.Value);
-            ImGui::Button(std::string(s->name).append("##" + std::to_string(1)).c_str(), ImVec2(200, 50));
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetColorU32(*s->getColor()));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetColorU32(*s->getColor()));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(*s->getColor()));
+            ImGui::Button(string(s->getName()).append("##").append(std::to_string(1)).c_str(), ImVec2(200, 50));
             ImGui::PopStyleColor();
             ImGui::PopStyleColor();
 
@@ -754,7 +775,7 @@ void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::s
             ImGui::SameLine();
             ImGui::SetCursorPosX(255);
             if(ImGui::Button(std::string("Remove##").append(std::to_string(latestId++)).c_str(), ImVec2(200, 50))) {
-                tasker::remove_status(s, workspace);
+                w.dropStatus(s);
                 refresh = true;
                 manage_statuses = false;
             }
@@ -767,12 +788,12 @@ void manage_statuses(bool& manage_statuses, bool& refresh, std::vector<tasker::s
 
         ImGui::TextUnformatted("Status Name: ");
         ImGui::PushID(latestId++);
-        ImGui::InputText("##", workspace.new_category, IM_ARRAYSIZE(workspace.new_category));
+        ImGui::InputText("##", buffer, MAX_STRING_LENGTH);
         ImGui::PopID();
 
         ImGui::SetCursorPosX(45);
         if(ImGui::Button("Create Status", ImVec2(410, 50))) {
-            tasker::create_status(workspace.new_category, colors[0] * 255, colors[1]* 255, colors[2] * 255);
+            w.createStatus(buffer, ImVec4(colors[0], colors[1], colors[2], 1.0f));
             refresh = true;
         }
         manage_statuses = manage_statuses && ImGui::IsWindowFocused();
