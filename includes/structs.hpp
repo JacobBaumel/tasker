@@ -93,7 +93,9 @@ namespace tasker {
             char task_write_buf[MAX_STRING_LENGTH];
             char people_write_buf[MAX_STRING_LENGTH];
             char date_write_buf[MAX_STRING_LENGTH];
-            bool wasSelected = false;
+            bool wasTaskSelected = false;
+            bool wasPeopleSelected = false;
+            bool wasDateSelected = false;
     };
 
     class supertask {

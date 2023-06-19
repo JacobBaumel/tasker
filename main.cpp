@@ -106,6 +106,7 @@ int main() {
                 // Persistent workspace during workspace stage
                 tasker::workspace_statics statics;
                 tasker::workspace w(getConnection(connection.connection), connection.schema);
+                w.connect(true);
 
                 // Timer for refresh text
                 time_t timer;

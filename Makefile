@@ -74,7 +74,7 @@ endif
 	$(CXX) -o $@ $< $(EXTRA_FLAGS) $(INCLUDES) -c
 
 all: $(EXE)
-	@echo Build Complete! && ./$(EXE)
+	@echo Build Complete!
 
 $(EXE): $(COMPILE_OBJECTS)
 	$(CXX) $(COMPILE_OBJECTS) $(LIBS) $(EXTRA_FLAGS) -o $(EXE)

@@ -104,11 +104,14 @@ namespace tasker {
     // The following are constructors/destructors for the task class
     task::task(supertask* super, status* _status, const std::string& _task, const std::string& _date, const std::string& _people, const int& _pos, const int& _id) {
         // Constructor will throw an error if any of the string arguments are longer than what is defined by MAX_STRING_LENGTH in includes/structs.h
-        if(_task.length() > MAX_STRING_LENGTH || _date.length() > MAX_STRING_LENGTH || 
-                _people.length() > MAX_STRING_LENGTH) throw StringTooLongException();
+        if(_task.length() > MAX_STRING_LENGTH - 1 || _date.length() > MAX_STRING_LENGTH - 1 || 
+                _people.length() > MAX_STRING_LENGTH - 1) throw StringTooLongException();
         taskk = new string(_task);
         date = new string(_date);
         people = new string(_people);
+        strncpy(task_write_buf, taskk->c_str(), MAX_STRING_LENGTH - 1);
+        strncpy(people_write_buf, people->c_str(), MAX_STRING_LENGTH - 1);
+        strncpy(date_write_buf, date->c_str(), MAX_STRING_LENGTH - 1);
         statuss = _status;
         id = new int(_id);
         pos = new int(_pos);
@@ -148,7 +151,7 @@ namespace tasker {
         tasks = new std::vector<task*>();
         color = new ImVec4(_color);
         name = new string(_name);
-        display_name = new string(_name);
+        display_name = new string(_name.substr(5));
         for(size_t i = 0; i < display_name->length(); i++) if((*display_name)[i] == '_') (*display_name)[i] = ' ';
     }
 
@@ -271,15 +274,21 @@ namespace tasker {
             if(table.substr(0, 5) != "task_") continue;
 
             // Create a display name by substituting the "_" characters for spaces
-            std::string display = table.substr(5);
-            for(size_t i = 0; i < display.length(); i++) if(display[i] == '_') display[i] = ' ';
-            tasker::supertask* task = new tasker::supertask(table.substr(5), colors.at(table.substr(5)));
+            tasker::supertask* task = new tasker::supertask(table, colors.at(table.substr(5)));
             
             // Iterate through all tasks of supertask and load them into the object
             sql::ResultSet* tasks = stmt->executeQuery("select * from " + table + " order by pos");
-            while(tasks->next()) 
-                task->tasks->push_back(new tasker::task(task, getStatusFromString(tasks->getString("status")), tasks->getString("task"), 
-                            tasks->getString("date"), tasks->getString("people"), tasks->getInt("pos"), tasks->getInt("idd")));
+            while(tasks->next()) {
+                status* s = getStatusFromString(tasks->getString("status"));
+                string taskk = tasks->getString("task");
+                string date = tasks->getString("date");
+                string people = tasks->getString("people");
+                int pos = tasks->getInt("pos");
+                int idd = tasks->getInt("idd");
+                task->tasks->push_back(new tasker::task(task, s, taskk, date, people, pos, idd));
+            }
+                //task->tasks->push_back(new tasker::task(task, getStatusFromString(tasks->getString("status")), tasks->getString("task"), 
+            //          tasks->getString("date"), tasks->getString("people"), tasks->getInt("pos"), tasks->getInt("idd")));
         
             this->tasks->push_back(task);
         }
@@ -523,7 +532,7 @@ namespace tasker {
 
         // Update sql server with new information
         std::ostringstream ss;
-        ss << "UPDATE TABLE " << task->super->getName() << " SET status=\"" << status->name << "\" WHERE idd=" << task->id;
+        ss << "UPDATE " << task->super->getName() << " SET status=\"" << status->getName() << "\" WHERE idd=" << *task->id;
         queueQuery(ss.str());
 
     }
@@ -536,7 +545,7 @@ namespace tasker {
 
         // Updates server with new information
         std::ostringstream ss;
-        ss << "UPDATE TABLE " << task->super->getName() << " SET date=\"" << date << "\" WHERE idd=" << task->id;
+        ss << "UPDATE " << task->super->getName() << " SET date=\"" << date << "\" WHERE idd=" << *task->id;
         queueQuery(ss.str());
     }
 
@@ -548,7 +557,7 @@ namespace tasker {
 
         // Updates sql server with new information
         std::ostringstream ss;
-        ss << "UPDATE TABLE " << task->super->getName() << " SET people=\"" << people << "\" WHERE idd=" << task->id;
+        ss << "UPDATE " << task->super->getName() << " SET people=\"" << people << "\" WHERE idd=" << *task->id;
         queueQuery(ss.str());
     }
     
@@ -560,7 +569,7 @@ namespace tasker {
 
         // Update server
         std::ostringstream ss;
-        ss << "UPDATE TABLE " << task->super->getName() << "SET task=\"" << taskString << "\" WHERE idd=" << task->id;
+        ss << "UPDATE " << task->super->getName() << " SET task=\"" << taskString << "\" WHERE idd=" << *task->id;
         queueQuery(ss.str());
     }
     
@@ -595,14 +604,14 @@ namespace tasker {
     void workspace::dropTask(task* task) {
         // Get index of the task
         size_t index;
-        for(index = 0; task->id != task->super->tasks->at(index)->id; index++); 
+        for(index = 0; *task->id != *task->super->tasks->at(index)->id; index++); 
 
         // Remove task from supertask vector
         task->super->tasks->erase(task->super->tasks->begin() + index);
 
         // Update server
         std::ostringstream ss;
-        ss << "DELETE FROM task_" << task->super->getName() << "WHERE idd=" << task->id;
+        ss << "DELETE FROM " << task->super->getName() << " WHERE idd=" << *task->id;
         queueQuery(ss.str());
         delete task;
     }
@@ -630,14 +639,24 @@ namespace tasker {
     }
 
     // Deletes status from the workspace
-    void workspace::dropStatus(status* status) {
+    void workspace::dropStatus(status* stat) {
         size_t index;
-        for(index = 0; status != stati->at(index); index++);
+        for(index = 0; stat != stati->at(index); index++);
         stati->erase(stati->begin() + index);
         std::ostringstream ss;
-        ss << "DELETE FROM stati WHERE name=\"" << status->name << "\"";
+        ss << "DELETE FROM stati WHERE name=\"" << stat->getName() << "\"";
         queueQuery(ss.str());
-        delete status;
+
+        status* none = getStatusFromString("None");
+        for(supertask* super : *getSupers()) {
+            for(task* t : *super->getTasks()) {
+                if(t->getStatus() == stat) setTaskStatus(t, none);
+            }
+
+            if(super->new_status == stat) super->new_status = none;
+        }
+
+        delete stat;
     }
 
     // Changes status color
@@ -648,7 +667,7 @@ namespace tasker {
 
         // Update server with new color
         std::ostringstream ss;
-        ss << "UPDATE TABLE stati SET r=" << (int) color.x << ", g=" << (int) color.y << ", b=" << (int) color.z << " WHERE name=\"" << status->name << "\"";
+        ss << "UPDATE stati SET r=" << (int) color.x << ", g=" << (int) color.y << ", b=" << (int) color.z << " WHERE name=\"" << status->getName() << "\"";
         queueQuery(ss.str());
     }
 
@@ -656,7 +675,7 @@ namespace tasker {
     void workspace::setStatusName(status* status, const string& name) {
         // Update server first so the old name can be used in the query
         std::ostringstream ss;
-        ss << "UPDATE TABLE stati SET name=\"" << name << "\" WHERE name=\"" << status->name << "\"";
+        ss << "UPDATE stati SET name=\"" << name << "\" WHERE name=\"" << status->getName() << "\"";
         queueQuery(ss.str());
 
         // Delete old name and create new one

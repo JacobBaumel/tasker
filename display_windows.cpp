@@ -513,7 +513,7 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, tasker::work
 
     // Draw supertask label/text
     ImGui::SetCursorPos(ImVec2(75, y + 7));
-    ImGui::TextUnformatted(task->getName());
+    ImGui::TextUnformatted(task->getDisplay());
 
     // Pop previous text color, and set it to white
     ImGui::PopStyleColor();
@@ -538,7 +538,7 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, tasker::work
 
     // Create button for collapsing task
     ImGui::SetCursorPos(ImVec2(55, y + 10));
-    bool pushed = ImGui::InvisibleButton(std::string("##task_opening_").append(task->getName()).c_str(), ImVec2(15, 15));
+    bool pushed = ImGui::InvisibleButton(std::string("##task_opening_").append(task->getDisplay()).c_str(), ImVec2(15, 15));
 
     // If the collapse arrow is hovered, create darkened circle around it to indicate it is hovered
     if(ImGui::IsItemHovered()) draw->AddCircleFilled(ImVec2(62.5, y + 17.5 - scroll), 9, ImColor(ImVec4(0.5, 0.5, 0.5, 0.5)));
@@ -563,10 +563,11 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, tasker::work
             ImGui::PushItemWidth((ImGui::GetWindowSize().x - 120) / 2);
             bool taskChanged = ImGui::InputText(std::string("##task_input_").append(std::to_string(latestId++)).c_str(), 
                     &t->task_write_buf[0], MAX_STRING_LENGTH, ImGuiInputTextFlags_EnterReturnsTrue);
-            if(taskChanged || ImGui::IsItemActive()) {
+            if(taskChanged || (t->wasTaskSelected && !ImGui::IsItemActive())) {
                 w.setTaskTask(t, t->task_write_buf);
                 changed = true;
             }
+            t->wasTaskSelected = ImGui::IsItemActive();
             ImGui::PopItemWidth();
 
             // Draw text field for people, and detect any changes
@@ -574,10 +575,11 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, tasker::work
             ImGui::PushItemWidth((ImGui::GetWindowSize().x - 100) / 3);
             bool peopleChanged = ImGui::InputText(std::string("##task_people_").append(std::to_string(latestId++)).c_str(), 
                     &t->people_write_buf[0], MAX_STRING_LENGTH, ImGuiInputTextFlags_EnterReturnsTrue);
-            if(peopleChanged || ImGui::IsItemActive()) {
+            if(peopleChanged || (t->wasPeopleSelected && !ImGui::IsItemActive())) {
                 w.setTaskPeople(t, t->people_write_buf);
                 changed = true;
             }
+            t->wasPeopleSelected = ImGui::IsItemActive();
             ImGui::PopItemWidth();
 
             // Drawing block for selecting status
@@ -635,7 +637,6 @@ void draw_supertask(tasker::supertask* task, int& y, int& latestId, tasker::work
             if(edited) ImGui::SetWindowFocus(w.getName());
 
             // If a change is detected, update mysql server
-            t->wasSelected = changed;
             ImGui::PopStyleColor();
             ImGui::PopStyleColor();
 
@@ -760,14 +761,14 @@ void manage_statuses(bool& manage_statuses, bool& refresh, tasker::workspace& w,
 
     if(ImGui::Begin("Mange Statuses", &manage_statuses, flags)) {
         // Iterate through all statuses to display them
-        for(tasker::status* s : *w.getStati()) {
-            if(s->getName() == string("None")) continue;
+        for(size_t i = 0; i < w.getStati()->size(); i++) {
+            if(w.getStati()->at(i)->getName() == string("None")) continue;
             // Display solid color button for the status name, easier than using basic level drawing api
             ImGui::SetCursorPosX(45);
-            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetColorU32(*s->getColor()));
-            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetColorU32(*s->getColor()));
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(*s->getColor()));
-            ImGui::Button(string(s->getName()).append("##").append(std::to_string(1)).c_str(), ImVec2(200, 50));
+            ImGui::PushStyleColor(ImGuiCol_Button, ImGui::GetColorU32(*w.getStati()->at(i)->getColor()));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImGui::GetColorU32(*w.getStati()->at(i)->getColor()));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImGui::GetColorU32(*w.getStati()->at(i)->getColor()));
+            ImGui::Button(string(w.getStati()->at(i)->getName()).append("##").append(std::to_string(1)).c_str(), ImVec2(200, 50));
             ImGui::PopStyleColor();
             ImGui::PopStyleColor();
 
@@ -775,7 +776,8 @@ void manage_statuses(bool& manage_statuses, bool& refresh, tasker::workspace& w,
             ImGui::SameLine();
             ImGui::SetCursorPosX(255);
             if(ImGui::Button(std::string("Remove##").append(std::to_string(latestId++)).c_str(), ImVec2(200, 50))) {
-                w.dropStatus(s);
+                w.dropStatus(w.getStati()->at(i));
+                i--;
                 refresh = true;
                 manage_statuses = false;
             }
